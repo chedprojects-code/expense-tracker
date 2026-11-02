@@ -36,10 +36,17 @@ export function useExpenseData() {
   const [showBalance, setShowBalance] = useLocalStorage('pref:showBalance', true)
   const [hideAccountAmounts, setHideAccountAmounts] = useLocalStorage('pref:hideAccountAmounts', false)
   const [collapsed, setCollapsed] = useLocalStorage<Record<string, boolean>>('pref:collapsed', {})
+  const [excludedAccounts, setExcludedAccounts] = useLocalStorage<string[]>('pref:excludedAccounts', [])
 
   const toggleCollapse = useCallback((key: string) => {
     setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }))
   }, [setCollapsed])
+
+  const toggleExcludeAccount = useCallback((id: string) => {
+    setExcludedAccounts((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    )
+  }, [setExcludedAccounts])
 
   // ── UI state ────────────────────────────────────────────────────────────────
   const [active, setActive] = useState('Home')
@@ -145,7 +152,9 @@ export function useExpenseData() {
   const totalLent = lenders.reduce((sum, l) => sum + l.amount, 0)
   const totalFutureExpenses = futureExpenses.reduce((sum, f) => sum + f.amount, 0)
   const netWorth = accounts.reduce((sum, a) => sum + a.balance, 0) + totalLent
+  const spendableWorth = accounts.filter((a) => !excludedAccounts.includes(a.id)).reduce((sum, a) => sum + a.balance, 0) + totalLent
   const netAfterFuture = netWorth - totalFutureExpenses
+  const spendableAfterFuture = spendableWorth - totalFutureExpenses
   const goalPercent = goal ? Math.min(100, Math.round((goal.current_amount / goal.target_amount) * 100)) : 0
   const unreadCount = notifications.filter((n) => !n.read).length
   const viewPeriodLabel = getViewPeriodLabel(viewYear, viewMonth)
@@ -418,8 +427,6 @@ export function useExpenseData() {
     active, setActive,
     dark, setDark,
     showBalance, setShowBalance,
-    hideAccountAmounts, setHideAccountAmounts,
-    collapsed, toggleCollapse,
     dataLoading,
     // month
     viewMonth, viewYear, viewPeriodLabel,
@@ -449,7 +456,11 @@ export function useExpenseData() {
     // data
     profile, accounts, transactions, notes, goal, notifications,
     // derived
-    stats, chart, netWorth, netAfterFuture, goalPercent, unreadCount,
+    stats, chart, netWorth, netAfterFuture, spendableWorth, spendableAfterFuture, goalPercent, unreadCount,
+    // ui prefs
+    hideAccountAmounts, setHideAccountAmounts,
+    collapsed, toggleCollapse,
+    excludedAccounts, toggleExcludeAccount,
     // lenders
     lenders, totalLent,
     showLenderDialog, lenderDraft, setLenderDraft, editingLender,

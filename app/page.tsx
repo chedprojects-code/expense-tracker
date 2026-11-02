@@ -37,11 +37,12 @@ export default function Page() {
     showTxDialog, setShowTxDialog, txDraft, setTxDraft, editingTx, openTx, saveTx, removeTx,
     goalDraft, setGoalDraft, saveGoal, profileDraft, setProfileDraft, savingProfile, saveProfile,
     handleMarkRead, profile, accounts, transactions, notes, goal, notifications,
-    stats, chart: { incLine, expLine, incArea, dayLabels }, netWorth, netAfterFuture, goalPercent, unreadCount,
+    stats, chart: { incLine, expLine, incArea, dayLabels }, netWorth, netAfterFuture, spendableWorth, spendableAfterFuture, goalPercent, unreadCount,
     lenders, totalLent,
     showLenderDialog, lenderDraft, setLenderDraft, editingLender, openLender, closeLender, saveLender, removeLender,
     hideAccountAmounts, setHideAccountAmounts,
     collapsed, toggleCollapse,
+    excludedAccounts, toggleExcludeAccount,
     futureExpenses, totalFutureExpenses,
     showFutureExpenseDialog, futureExpenseDraft, setFutureExpenseDraft, editingFutureExpense,
     openFutureExpense, closeFutureExpense, saveFutureExpense, removeFutureExpense,
@@ -99,10 +100,16 @@ export default function Page() {
                         <button className="eye" onClick={() => setShowBalance(!showBalance)} aria-label="Toggle">{showBalance ? '◉' : '○'}</button>
                       </p>
                       <div className="net-value">{showBalance ? fmt(netWorth) : '••••••••'}</div>
+                      {excludedAccounts.length > 0 && (
+                        <div className="net-planned">
+                          <span>spendable (excl. savings)</span>
+                          <span style={{ color: '#8af0dc' }}>{showBalance ? fmt(spendableWorth) : '••••'}</span>
+                        </div>
+                      )}
                       {totalFutureExpenses > 0 && (
                         <div className="net-planned">
                           <span>after future expenses</span>
-                          <span>{showBalance ? fmt(netAfterFuture) : '••••'}</span>
+                          <span>{showBalance ? fmt(excludedAccounts.length > 0 ? spendableAfterFuture : netAfterFuture) : '••••'}</span>
                         </div>
                       )}
                       <div className="trend">
@@ -115,7 +122,6 @@ export default function Page() {
                       <motion.div className="orb" animate={{ scale: [1, 1.13, 1], opacity: [.55, .95, .55] }} transition={{ duration: 2.8, repeat: Infinity }}>
                         <span>✦</span>
                       </motion.div>
-                      <div className="orb-value">NGN <small>+</small></div>
                     </div>
                   </motion.section>
 
@@ -240,14 +246,17 @@ export default function Page() {
                   ) : (
                     <div className="account-row">
                       {accounts.map((acc, i) => (
-                        <motion.article whileHover={{ y: -5 }} className={`account-card ${i === 0 ? 'active-account' : ''}`} key={acc.id}>
+                        <motion.article whileHover={{ y: -5 }} className={`account-card ${i === 0 ? 'active-account' : ''} ${excludedAccounts.includes(acc.id) ? 'account-excluded' : ''}`} key={acc.id}>
                           <div className={`account-icon account-${acc.tone}`}>{acc.symbol}</div>
                           <p>{acc.name}</p>
                           <small>{acc.purpose}</small>
-                          <strong>{hideAccountAmounts ? '••••' : fmt(acc.balance)}</strong>
+                          <strong>{hideAccountAmounts || excludedAccounts.includes(acc.id) ? '••••' : fmt(acc.balance)}</strong>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 11 }}>
                             <div className="account-dots"><i /><i /><i /></div>
                             <div style={{ display: 'flex', gap: 4 }}>
+                              <button onClick={() => toggleExcludeAccount(acc.id)} style={{ background: 'none', padding: 2 }} title={excludedAccounts.includes(acc.id) ? 'Include in total' : 'Exclude from total'}>
+                                {excludedAccounts.includes(acc.id) ? <EyeOff style={{ width: 11, color: '#d878a1' }} /> : <Eye style={{ width: 11, color: 'var(--muted)' }} />}
+                              </button>
                               <button onClick={() => openAccount(acc)} style={{ background: 'none', padding: 2 }}><Pencil style={{ width: 11, color: 'var(--muted)' }} /></button>
                               <button onClick={() => removeAccount(acc.id)} style={{ background: 'none', padding: 2 }}><Trash2 style={{ width: 11, color: 'var(--muted)' }} /></button>
                             </div>
