@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { fmt } from '@/lib/supabase/db'
 import {
-  NoteDialog, AccountDialog, TxDialog, LenderDialog,
+  NoteDialog, AccountDialog, TxDialog, LenderDialog, FutureExpenseDialog,
 } from '@/components/dashboard/dialogs'
 import {
   NotificationsPanel, CategoryDetailsPanel, SpendingFlowPanel, HelpPanel,
@@ -14,7 +14,7 @@ import { InsightsView, NotesView, SettingsView } from '@/components/dashboard/vi
 import {
   ArrowDownLeft, ArrowUpRight, Bell, ChevronLeft, ChevronRight, ChevronDown,
   CircleHelp, CreditCard, Eye, EyeOff, Home, LogOut, Moon, MoreHorizontal, Pencil, Plus,
-  Settings2, Sparkles, Sun, Target, Trash2, TrendingUp, WalletCards, X, Loader2, HandCoins,
+  Settings2, Sparkles, Sun, Target, Trash2, TrendingUp, WalletCards, X, Loader2, HandCoins, CalendarClock,
 } from 'lucide-react'
 
 const navItems = [
@@ -37,11 +37,14 @@ export default function Page() {
     showTxDialog, setShowTxDialog, txDraft, setTxDraft, editingTx, openTx, saveTx, removeTx,
     goalDraft, setGoalDraft, saveGoal, profileDraft, setProfileDraft, savingProfile, saveProfile,
     handleMarkRead, profile, accounts, transactions, notes, goal, notifications,
-    stats, chart: { incLine, expLine, incArea, dayLabels }, netWorth, goalPercent, unreadCount,
+    stats, chart: { incLine, expLine, incArea, dayLabels }, netWorth, netAfterFuture, goalPercent, unreadCount,
     lenders, totalLent,
     showLenderDialog, lenderDraft, setLenderDraft, editingLender, openLender, closeLender, saveLender, removeLender,
     hideAccountAmounts, setHideAccountAmounts,
     collapsed, toggleCollapse,
+    futureExpenses, totalFutureExpenses,
+    showFutureExpenseDialog, futureExpenseDraft, setFutureExpenseDraft, editingFutureExpense,
+    openFutureExpense, closeFutureExpense, saveFutureExpense, removeFutureExpense,
   } = useExpenseData()
 
   if (authLoading || !user) return null
@@ -96,6 +99,12 @@ export default function Page() {
                         <button className="eye" onClick={() => setShowBalance(!showBalance)} aria-label="Toggle">{showBalance ? '◉' : '○'}</button>
                       </p>
                       <div className="net-value">{showBalance ? fmt(netWorth) : '••••••••'}</div>
+                      {totalFutureExpenses > 0 && (
+                        <div className="net-planned">
+                          <span>after future expenses</span>
+                          <span>{showBalance ? fmt(netAfterFuture) : '••••'}</span>
+                        </div>
+                      )}
                       <div className="trend">
                         <TrendingUp />
                         <strong style={{ color: stats.income.isPositive ? '#8af0dc' : '#ed8fbb' }}>{stats.income.change}</strong>
@@ -249,6 +258,43 @@ export default function Page() {
                   )}
                     </motion.div>}
                   </AnimatePresence>
+
+                  {/* Future Expenses */}
+                  <SectionTitle
+                    eyebrow="FUTURE EXPENSES"
+                    title="Planned spending"
+                    action={<button className="text-button" onClick={() => openFutureExpense()}>+ Add <ChevronRight /></button>}
+                  />
+                  {futureExpenses.length === 0 ? (
+                    <div className="glass-panel empty-notes" style={{ borderRadius: 20, padding: '24px 16px' }}>
+                      <CalendarClock style={{ width: 24, color: '#7168db' }} />
+                      <p>No future expenses yet</p>
+                      <button className="text-button" onClick={() => openFutureExpense()}>Add a planned expense</button>
+                    </div>
+                  ) : (
+                    <div className="glass-panel lenders-list">
+                      <div className="lenders-total">
+                        <span className="eyebrow">TOTAL PLANNED</span>
+                        <strong style={{ color: '#d878a1' }}>{fmt(totalFutureExpenses)}</strong>
+                      </div>
+                      {futureExpenses.map((fe) => (
+                        <motion.div layout key={fe.id} className="lender-row">
+                          <div className="lender-avatar" style={{ background: 'linear-gradient(135deg,#d878a1,#f0a8c8)' }}>
+                            <CalendarClock style={{ width: 14 }} />
+                          </div>
+                          <div className="lender-info">
+                            <p>{fe.title}</p>
+                            <small>{fe.category} · Due {fe.due_date}</small>
+                          </div>
+                          <strong className="lender-amount" style={{ color: '#d878a1' }}>{fmt(fe.amount)}</strong>
+                          <div className="lender-actions">
+                            <button onClick={() => openFutureExpense(fe)}><Pencil style={{ width: 11 }} /></button>
+                            <button onClick={() => removeFutureExpense(fe.id)}><Trash2 style={{ width: 11 }} /></button>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Lenders */}
                   <SectionTitle
@@ -425,6 +471,10 @@ export default function Page() {
                     <GlassIcon tone="teal"><HandCoins /></GlassIcon>
                     <span>Lender<small>Track who owes you</small></span>
                   </button>
+                  <button onClick={() => { setShowAdd(false); openFutureExpense() }}>
+                    <GlassIcon tone="pink"><CalendarClock /></GlassIcon>
+                    <span>Future Exp.<small>Plan ahead</small></span>
+                  </button>
                 </div>
               </motion.div>
             </motion.div>
@@ -435,6 +485,7 @@ export default function Page() {
         <NoteDialog open={showNoteDialog} draft={noteDraft} setDraft={setNoteDraft} onSave={saveNote} onClose={closeNote} isEditing={editingNote !== null} />
         <AccountDialog open={showAccountDialog} draft={accountDraft} setDraft={setAccountDraft} onSave={saveAccount} onClose={closeAccount} isEditing={editingAccount !== null} />
         <TxDialog open={showTxDialog} draft={txDraft} setDraft={setTxDraft} onSave={saveTx} onClose={() => { setShowTxDialog(false) }} isEditing={editingTx !== null} />
+        <FutureExpenseDialog open={showFutureExpenseDialog} draft={futureExpenseDraft} setDraft={setFutureExpenseDraft} onSave={saveFutureExpense} onClose={closeFutureExpense} isEditing={editingFutureExpense !== null} />
         <LenderDialog open={showLenderDialog} draft={lenderDraft} setDraft={setLenderDraft} onSave={saveLender} onClose={closeLender} isEditing={editingLender !== null} />
 
         {/* ── Panels ── */}

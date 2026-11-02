@@ -8,15 +8,16 @@ import {
   upsertAccount, deleteAccount,
   upsertSavingsGoal, insertTransaction, updateTransaction, deleteTransaction, updateProfile,
   getLenders, upsertLender, deleteLender,
+  getFutureExpenses, upsertFutureExpense, deleteFutureExpense,
   calcStats, buildChartPaths,
-  type Account, type Note, type SavingsGoal, type Transaction, type Notification, type Lender,
+  type Account, type Note, type SavingsGoal, type Transaction, type Notification, type Lender, type FutureExpense,
 } from '@/lib/supabase/db'
 import {
   createAccountDraft, createGoalDraft, createNoteDraft, createProfileDraft, createTxDraft,
-  createLenderDraft,
+  createLenderDraft, createFutureExpenseDraft,
   generateId, getViewPeriodLabel, isFormValid, shiftMonth as getShiftedMonth,
 } from '@/lib/expense-utils'
-import type { GoalDraft, LenderDraft } from '@/components/dashboard/types'
+import type { GoalDraft, LenderDraft, FutureExpenseDraft } from '@/components/dashboard/types'
 import { createClient } from '@/lib/supabase/client'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 
@@ -71,6 +72,10 @@ export function useExpenseData() {
   const [editingLender, setEditingLender] = useState<Lender | null>(null)
   const [lenderDraft, setLenderDraft] = useState<LenderDraft>(() => createLenderDraft())
 
+  const [showFutureExpenseDialog, setShowFutureExpenseDialog] = useState(false)
+  const [editingFutureExpense, setEditingFutureExpense] = useState<FutureExpense | null>(null)
+  const [futureExpenseDraft, setFutureExpenseDraft] = useState<FutureExpenseDraft>(() => createFutureExpenseDraft())
+
   const [goalDraft, setGoalDraft] = useState<GoalDraft>(() => createGoalDraft())
   const [profileDraft, setProfileDraft] = useState(() => createProfileDraft())
   const [savingProfile, setSavingProfile] = useState(false)
@@ -83,13 +88,14 @@ export function useExpenseData() {
   const [goal, setGoal] = useState<SavingsGoal | null>(null)
   const [notifications, setNotifications] = useState<Notification[]>([])
   const [lenders, setLenders] = useState<Lender[]>([])
+  const [futureExpenses, setFutureExpenses] = useState<FutureExpense[]>([])
 
   // ── Load all data ───────────────────────────────────────────────────────────
   const loadData = useCallback(async () => {
     if (!user) return
     setDataLoading(true)
     try {
-      const [p, a, t, n, g, notifs, lnds] = await Promise.all([
+      const [p, a, t, n, g, notifs, lnds, fe] = await Promise.all([
         getProfile(user.id),
         getAccounts(user.id),
         getTransactions(user.id),
@@ -97,6 +103,7 @@ export function useExpenseData() {
         getSavingsGoal(user.id),
         getNotifications(user.id),
         getLenders(user.id),
+        getFutureExpenses(user.id),
       ])
       setProfile(p)
       setAccounts(a)
@@ -105,6 +112,7 @@ export function useExpenseData() {
       setGoal(g)
       setNotifications(notifs)
       setLenders(lnds)
+      setFutureExpenses(fe)
       if (p) setProfileDraft(createProfileDraft(p))
       if (g) setGoalDraft(createGoalDraft(g))
     } catch (err) {
@@ -126,6 +134,7 @@ export function useExpenseData() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'accounts', filter: `user_id=eq.${user.id}` }, () => loadData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notes', filter: `user_id=eq.${user.id}` }, () => loadData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'lenders', filter: `user_id=eq.${user.id}` }, () => loadData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'future_expenses', filter: `user_id=eq.${user.id}` }, () => loadData())
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [user, loadData])
@@ -134,7 +143,9 @@ export function useExpenseData() {
   const stats = calcStats(transactions, viewMonth, viewYear)
   const chart = buildChartPaths(transactions, viewMonth, viewYear)
   const totalLent = lenders.reduce((sum, l) => sum + l.amount, 0)
+  const totalFutureExpenses = futureExpenses.reduce((sum, f) => sum + f.amount, 0)
   const netWorth = accounts.reduce((sum, a) => sum + a.balance, 0) + totalLent
+  const netAfterFuture = netWorth - totalFutureExpenses
   const goalPercent = goal ? Math.min(100, Math.round((goal.current_amount / goal.target_amount) * 100)) : 0
   const unreadCount = notifications.filter((n) => !n.read).length
   const viewPeriodLabel = getViewPeriodLabel(viewYear, viewMonth)
@@ -350,6 +361,45 @@ export function useExpenseData() {
     }
   }, [])
 
+  // ── Future Expenses CRUD ─────────────────────────────────────────────────────────
+  const openFutureExpense = useCallback((item?: FutureExpense) => {
+    setEditingFutureExpense(item ?? null)
+    setFutureExpenseDraft(createFutureExpenseDraft(item))
+    setShowFutureExpenseDialog(true)
+  }, [])
+
+  const closeFutureExpense = useCallback(() => {
+    setShowFutureExpenseDialog(false)
+    setEditingFutureExpense(null)
+  }, [])
+
+  const saveFutureExpense = useCallback(async () => {
+    if (!user || !isFormValid(futureExpenseDraft, ['title', 'amount', 'due_date'])) return
+    try {
+      await upsertFutureExpense({
+        id: editingFutureExpense?.id ?? generateId(),
+        user_id: user.id,
+        title: futureExpenseDraft.title,
+        amount: parseFloat(futureExpenseDraft.amount),
+        due_date: futureExpenseDraft.due_date,
+        category: futureExpenseDraft.category,
+      })
+      closeFutureExpense()
+      await loadData()
+    } catch (err) {
+      console.error('[saveFutureExpense]', err)
+    }
+  }, [futureExpenseDraft, editingFutureExpense, user, closeFutureExpense, loadData])
+
+  const removeFutureExpense = useCallback(async (id: string) => {
+    try {
+      await deleteFutureExpense(id)
+      setFutureExpenses((prev) => prev.filter((x) => x.id !== id))
+    } catch (err) {
+      console.error('[removeFutureExpense]', err)
+    }
+  }, [])
+
   // ── Notifications ───────────────────────────────────────────────────────────
   const handleMarkRead = useCallback(async () => {
     if (!user) return
@@ -399,11 +449,15 @@ export function useExpenseData() {
     // data
     profile, accounts, transactions, notes, goal, notifications,
     // derived
-    stats, chart, netWorth, goalPercent, unreadCount,
+    stats, chart, netWorth, netAfterFuture, goalPercent, unreadCount,
     // lenders
     lenders, totalLent,
     showLenderDialog, lenderDraft, setLenderDraft, editingLender,
     openLender, closeLender, saveLender, removeLender,
+    // future expenses
+    futureExpenses, totalFutureExpenses,
+    showFutureExpenseDialog, futureExpenseDraft, setFutureExpenseDraft, editingFutureExpense,
+    openFutureExpense, closeFutureExpense, saveFutureExpense, removeFutureExpense,
     // reload
     loadData,
   }

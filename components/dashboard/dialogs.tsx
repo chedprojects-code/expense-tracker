@@ -1,7 +1,7 @@
 'use client'
 import { motion } from 'framer-motion'
 import { Save, X } from 'lucide-react'
-import type { NoteDraft, AccountDraft, TxDraft, LenderDraft } from './types'
+import type { NoteDraft, AccountDraft, TxDraft, LenderDraft, FutureExpenseDraft } from './types'
 
 const CATEGORIES = ['Food & snacks', 'Transport', 'Outings', 'Data & airtime', 'Utilities', 'Shopping', 'Health', 'Other']
 const TONE_COLORS: Record<string, string> = { violet: '#7c6cff', teal: '#59d5c9', gold: '#f6b86c', pink: '#ed8fbb' }
@@ -159,6 +159,41 @@ export function LenderDialog({ open, draft, setDraft, onSave, onClose, isEditing
         <label>Amount Owed (NGN)<input required value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} placeholder="0" inputMode="decimal" /></label>
         <label>Note (optional)<input value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} placeholder="e.g. Borrowed for rent" /></label>
         <button className="primary-button" type="submit"><Save /> Save lender</button>
+      </motion.form>
+    </motion.div>
+  )
+}
+
+// ─── Future Expense Dialog ────────────────────────────────────────────────────
+export function FutureExpenseDialog({ open, draft, setDraft, onSave, onClose, isEditing }: {
+  open: boolean
+  draft: FutureExpenseDraft
+  setDraft: (d: FutureExpenseDraft) => void
+  onSave: () => void
+  onClose: () => void
+  isEditing: boolean
+}) {
+  if (!open) return null
+  return (
+    <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: .18 }}>
+      <motion.form
+        className="note-dialog glass-panel"
+        initial={{ y: 40 }} animate={{ y: 0 }}
+        transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+        onSubmit={(e) => { e.preventDefault(); onSave() }}
+      >
+        <button type="button" className="close-button" onClick={onClose}><X /></button>
+        <p className="eyebrow">{isEditing ? 'EDIT FUTURE EXPENSE' : 'NEW FUTURE EXPENSE'}</p>
+        <h2>{isEditing ? 'Update planned expense' : 'What will you spend on?'}</h2>
+        <label>Title<input required value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="e.g. Rent, Electricity" /></label>
+        <label>Amount (NGN)<input required value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} placeholder="0" inputMode="decimal" /></label>
+        <label>Due Date<input required type="date" value={draft.due_date} onChange={(e) => setDraft({ ...draft, due_date: e.target.value })} /></label>
+        <label>Category
+          <select value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })}>
+            {['Rent', 'Utilities', 'Food & snacks', 'Transport', 'Data & airtime', 'Health', 'Shopping', 'Other'].map((c) => <option key={c}>{c}</option>)}
+          </select>
+        </label>
+        <button className="primary-button" type="submit"><Save /> Save</button>
       </motion.form>
     </motion.div>
   )

@@ -124,4 +124,21 @@ alter publication supabase_realtime add table accounts;
 alter publication supabase_realtime add table notes;
 alter publication supabase_realtime add table lenders;
 
+-- Future Expenses (planned spending not yet made)
+create table if not exists future_expenses (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  title text not null,
+  amount numeric not null default 0,
+  due_date date not null default current_date,
+  category text not null default 'Other',
+  created_at timestamptz default now()
+);
+
+alter table future_expenses enable row level security;
+drop policy if exists "Users can manage their own future expenses" on future_expenses;
+create policy "Users can manage their own future expenses" on future_expenses for all using (auth.uid() = user_id);
+
+alter publication supabase_realtime add table future_expenses;
+
 notify pgrst, 'reload schema';

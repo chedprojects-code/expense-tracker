@@ -1,5 +1,5 @@
-import type { Note, Account, SavingsGoal, Lender } from '@/lib/supabase/db'
-import type { NoteDraft, AccountDraft, TxDraft, GoalDraft, LenderDraft } from '@/components/dashboard/types'
+import type { Note, Account, SavingsGoal, Lender, FutureExpense } from '@/lib/supabase/db'
+import type { NoteDraft, AccountDraft, TxDraft, GoalDraft, LenderDraft, FutureExpenseDraft } from '@/components/dashboard/types'
 
 export function createNoteDraft(note?: Note): NoteDraft {
   if (note) {
@@ -42,6 +42,11 @@ export function createProfileDraft(profile?: { name: string; initials: string })
 export function createLenderDraft(lender?: Lender): LenderDraft {
   if (lender) return { name: lender.name, amount: String(lender.amount), note: lender.note }
   return { name: '', amount: '', note: '' }
+}
+
+export function createFutureExpenseDraft(item?: FutureExpense): FutureExpenseDraft {
+  if (item) return { title: item.title, amount: String(item.amount), due_date: item.due_date, category: item.category }
+  return { title: '', amount: '', due_date: new Date().toISOString().slice(0, 10), category: 'Other' }
 }
 
 export function isFormValid<T extends object>(draft: T, fields: (keyof T)[]): boolean {

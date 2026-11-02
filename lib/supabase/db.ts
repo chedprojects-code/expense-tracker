@@ -333,3 +333,33 @@ export async function deleteLender(id: string) {
   const { error } = await supabase.from('lenders').delete().eq('id', id)
   throwOnSupabaseError(error)
 }
+
+// ─── Future Expenses ───────────────────────────────────────────────────────────────
+export type FutureExpense = {
+  id: string
+  user_id: string
+  title: string
+  amount: number
+  due_date: string
+  category: string
+  created_at: string
+}
+
+export async function getFutureExpenses(userId: string): Promise<FutureExpense[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase.from('future_expenses').select('*').eq('user_id', userId).order('due_date')
+  throwOnSupabaseError(error)
+  return data ?? []
+}
+
+export async function upsertFutureExpense(item: Omit<FutureExpense, 'created_at'>) {
+  const supabase = createClient()
+  const { error } = await supabase.from('future_expenses').upsert(item)
+  throwOnSupabaseError(error)
+}
+
+export async function deleteFutureExpense(id: string) {
+  const supabase = createClient()
+  const { error } = await supabase.from('future_expenses').delete().eq('id', id)
+  throwOnSupabaseError(error)
+}
