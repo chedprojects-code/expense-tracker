@@ -121,3 +121,10 @@ button { border:0; font:inherit; color:inherit; cursor:pointer; }
 .dark-mode .tone-pink { background: #3a1a28; color: #e88ab4; }
 .dark-mode .tone-violet { background: #2a2560; color: #a89fff; }
 .dark-mode .tone-gold { background: #3a2a10; color: #f6c96a; }
+
+@media (max-width: 480px) {
+  .account-row { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; overflow-x: visible; }
+  .account-card { min-width: 0; padding: 4px; }
+  .account-card p { margin-top: 8px; }
+  .account-card strong { margin-top: 9px; }
+}
