@@ -1,0 +1,279 @@
+import { createClient } from '@/lib/supabase/client'
+
+export type Profile = {
+  id: string
+  name: string
+  initials: string
+  updated_at: string
+}
+
+export type Account = {
+  id: string
+  user_id: string
+  name: string
+  purpose: string
+  balance: number
+  tone: string
+  symbol: string
+  created_at: string
+}
+
+export type Transaction = {
+  id: string
+  user_id: string
+  type: 'income' | 'expense'
+  amount: number
+  category: string
+  description: string
+  date: string
+  created_at: string
+}
+
+export type Note = {
+  id: string
+  user_id: string
+  title: string
+  amount: number
+  due_date: string
+  category: string
+  updated_at: string
+  created_at: string
+}
+
+export type SavingsGoal = {
+  id: string
+  user_id: string
+  title: string
+  current_amount: number
+  target_amount: number
+  updated_at: string
+}
+
+export type Notification = {
+  id: string
+  user_id: string
+  message: string
+  read: boolean
+  created_at: string
+}
+
+export const fmt = (n: number) =>
+  'NGN ' + n.toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
+
+// ─── Profile ────────────────────────────────────────────────────────────────
+export async function getProfile(userId: string): Promise<Profile | null> {
+  const supabase = createClient()
+  const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
+  return data
+}
+
+export async function updateProfile(userId: string, updates: Partial<Pick<Profile, 'name' | 'initials'>>) {
+  const supabase = createClient()
+  return supabase.from('profiles').update(updates).eq('id', userId)
+}
+
+// ─── Accounts ───────────────────────────────────────────────────────────────
+export async function getAccounts(userId: string): Promise<Account[]> {
+  const supabase = createClient()
+  const { data } = await supabase.from('accounts').select('*').eq('user_id', userId).order('created_at')
+  return data ?? []
+}
+
+export async function upsertAccount(account: Omit<Account, 'created_at'>) {
+  const supabase = createClient()
+  return supabase.from('accounts').upsert(account)
+}
+
+export async function deleteAccount(id: string) {
+  const supabase = createClient()
+  return supabase.from('accounts').delete().eq('id', id)
+}
+
+// ─── Transactions ────────────────────────────────────────────────────────────
+export async function getTransactions(userId: string): Promise<Transaction[]> {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('transactions')
+    .select('*')
+    .eq('user_id', userId)
+    .order('date', { ascending: false })
+  return data ?? []
+}
+
+export async function insertTransaction(tx: Omit<Transaction, 'id' | 'created_at'>) {
+  const supabase = createClient()
+  return supabase.from('transactions').insert(tx)
+}
+
+export async function deleteTransaction(id: string) {
+  const supabase = createClient()
+  return supabase.from('transactions').delete().eq('id', id)
+}
+
+// ─── Stats & Chart ───────────────────────────────────────────────────────────
+export function calcStats(transactions: Transaction[], month: number, year: number) {
+  const inMonth = (t: Transaction, m: number, y: number) => {
+    const d = new Date(t.date)
+    return d.getMonth() === m && d.getFullYear() === y
+  }
+
+  const prevMonth = month === 0 ? 11 : month - 1
+  const prevYear = month === 0 ? year - 1 : year
+
+  const thisMonth = transactions.filter((t) => inMonth(t, month, year))
+  const lastMonth = transactions.filter((t) => inMonth(t, prevMonth, prevYear))
+
+  const sum = (arr: Transaction[], type: 'income' | 'expense') =>
+    arr.filter((t) => t.type === type).reduce((acc, t) => acc + t.amount, 0)
+
+  const income = sum(thisMonth, 'income')
+  const expenses = sum(thisMonth, 'expense')
+  const prevIncome = sum(lastMonth, 'income')
+  const prevExpenses = sum(lastMonth, 'expense')
+
+  const pct = (curr: number, prev: number) => {
+    if (prev === 0 && curr === 0) return '0%'
+    if (prev === 0) return '+100%'
+    const diff = ((curr - prev) / prev) * 100
+    return (diff >= 0 ? '+' : '') + diff.toFixed(1) + '%'
+  }
+
+  // Category breakdown
+  const categoryMap: Record<string, number> = {}
+  thisMonth.filter((t) => t.type === 'expense').forEach((t) => {
+    categoryMap[t.category] = (categoryMap[t.category] ?? 0) + t.amount
+  })
+  const tones = ['violet', 'teal', 'gold', 'pink']
+  const categories = Object.entries(categoryMap)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([label, value], i) => ({
+      label,
+      value: fmt(value),
+      rawValue: value,
+      percent: expenses > 0 ? Math.round((value / expenses) * 100) : 0,
+      tone: tones[i % tones.length],
+    }))
+
+  // All categories (for details panel)
+  const allCategories = Object.entries(categoryMap)
+    .sort((a, b) => b[1] - a[1])
+    .map(([label, value], i) => ({
+      label,
+      value: fmt(value),
+      rawValue: value,
+      percent: expenses > 0 ? Math.round((value / expenses) * 100) : 0,
+      tone: tones[i % tones.length],
+    }))
+
+  const period = new Date(year, month, 1).toLocaleString('en-NG', { month: 'long', year: 'numeric' })
+
+  return {
+    period,
+    income: { amount: fmt(income), rawAmount: income, change: pct(income, prevIncome), isPositive: income >= prevIncome },
+    expenses: { amount: fmt(expenses), rawAmount: expenses, change: pct(expenses, prevExpenses), isPositive: expenses <= prevExpenses },
+    categories,
+    allCategories,
+    thisMonthTxns: thisMonth,
+  }
+}
+
+// Build SVG path data from daily transaction totals for the spending flow chart
+export function buildChartPaths(transactions: Transaction[], month: number, year: number) {
+  const daysInMonth = new Date(year, month + 1, 0).getDate()
+  const incomeByDay: number[] = Array(daysInMonth).fill(0)
+  const expenseByDay: number[] = Array(daysInMonth).fill(0)
+
+  transactions.forEach((t) => {
+    const d = new Date(t.date)
+    if (d.getMonth() !== month || d.getFullYear() !== year) return
+    const day = d.getDate() - 1
+    if (t.type === 'income') incomeByDay[day] += t.amount
+    else expenseByDay[day] += t.amount
+  })
+
+  // Running cumulative
+  const incCum = incomeByDay.reduce<number[]>((acc, v, i) => { acc.push((acc[i - 1] ?? 0) + v); return acc }, [])
+  const expCum = expenseByDay.reduce<number[]>((acc, v, i) => { acc.push((acc[i - 1] ?? 0) + v); return acc }, [])
+
+  const maxVal = Math.max(...incCum, ...expCum, 1)
+  const W = 500
+  const H = 150
+  const pad = 10
+
+  const toPoint = (val: number, idx: number, total: number) => {
+    const x = (idx / (total - 1)) * (W - pad * 2) + pad
+    const y = H - pad - ((val / maxVal) * (H - pad * 2))
+    return `${x.toFixed(1)},${y.toFixed(1)}`
+  }
+
+  const points = (arr: number[]) => arr.map((v, i) => toPoint(v, i, arr.length))
+
+  const linePath = (pts: string[]) => pts.length < 2
+    ? `M${pts[0] ?? '0,150'}`
+    : `M${pts[0]} ` + pts.slice(1).map((p) => `L${p}`).join(' ')
+
+  const incPts = points(incCum)
+  const expPts = points(expCum)
+
+  const incLine = linePath(incPts)
+  const expLine = linePath(expPts)
+  const incArea = incLine + ` L${W - pad},${H - pad} L${pad},${H - pad} Z`
+
+  // Day labels: 5 evenly spaced
+  const dayLabels = Array.from({ length: 5 }, (_, i) =>
+    String(Math.round((i / 4) * (daysInMonth - 1)) + 1).padStart(2, '0')
+  )
+
+  return { incLine, expLine, incArea, dayLabels }
+}
+
+// ─── Notes ───────────────────────────────────────────────────────────────────
+export async function getNotes(userId: string): Promise<Note[]> {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('notes')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+  return data ?? []
+}
+
+export async function upsertNote(note: Omit<Note, 'created_at'>) {
+  const supabase = createClient()
+  return supabase.from('notes').upsert({ ...note, updated_at: new Date().toISOString() })
+}
+
+export async function deleteNote(id: string) {
+  const supabase = createClient()
+  return supabase.from('notes').delete().eq('id', id)
+}
+
+// ─── Savings Goal ─────────────────────────────────────────────────────────────
+export async function getSavingsGoal(userId: string): Promise<SavingsGoal | null> {
+  const supabase = createClient()
+  const { data } = await supabase.from('savings_goals').select('*').eq('user_id', userId).single()
+  return data
+}
+
+export async function upsertSavingsGoal(goal: Omit<SavingsGoal, 'updated_at'>) {
+  const supabase = createClient()
+  return supabase.from('savings_goals').upsert({ ...goal, updated_at: new Date().toISOString() })
+}
+
+// ─── Notifications ────────────────────────────────────────────────────────────
+export async function getNotifications(userId: string): Promise<Notification[]> {
+  const supabase = createClient()
+  const { data } = await supabase
+    .from('notifications')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+    .limit(20)
+  return data ?? []
+}
+
+export async function markNotificationsRead(userId: string) {
+  const supabase = createClient()
+  return supabase.from('notifications').update({ read: true }).eq('user_id', userId).eq('read', false)
+}

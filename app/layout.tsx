@@ -1,9 +1,10 @@
 import { Analytics } from '@vercel/analytics/next'
 import { Inter } from 'next/font/google'
+import './globals.css'
 import type { Metadata, Viewport } from 'next'
+import { AuthProvider } from '@/components/auth/AuthProvider'
 
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
-import './globals.css'
 
 export const metadata: Metadata = {
   title: 'SaveTrack — Your money, beautifully clear',
@@ -44,8 +45,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${inter.variable} antialiased`}>
-        {children}
-        {process.env.NODE_ENV === 'production' && <Analytics />}
+        <AuthProvider>
+          {children}
+          {process.env.NODE_ENV === 'production' && <Analytics />}
+        </AuthProvider>
       </body>
     </html>
   )
