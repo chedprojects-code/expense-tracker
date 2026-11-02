@@ -1,0 +1,19 @@
+{
+  "user": { "name": "Alex Johnson", "initials": "AJ" },
+  "period": "October 2026",
+  "netWorth": "NGN 537,300.00",
+  "income": { "amount": "NGN 245,000", "change": "+12.5%" },
+  "expenses": { "amount": "NGN 116,450", "change": "-4.2%" },
+  "accounts": [
+    { "name": "OPay #1", "purpose": "Airtime & Bills", "balance": "NGN 84,500", "tone": "violet", "symbol": "₦" },
+    { "name": "PiggyVest", "purpose": "Main Savings", "balance": "NGN 420,000", "tone": "teal", "symbol": "P" },
+    { "name": "Pocket", "purpose": "Pre-savings", "balance": "NGN 32,800", "tone": "gold", "symbol": "✦" }
+  ],
+  "categories": [
+    { "label": "Outings", "value": "NGN 38,400", "percent": 68, "tone": "violet" },
+    { "label": "Food & snacks", "value": "NGN 27,850", "percent": 48, "tone": "teal" },
+    { "label": "Transport", "value": "NGN 18,200", "percent": 34, "tone": "gold" },
+    { "label": "Data & airtime", "value": "NGN 12,600", "percent": 24, "tone": "pink" }
+  ],
+  "goal": { "title": "Build your safety net", "current": "NGN 75,000", "target": "NGN 100,000", "percent": 75 }
+}
