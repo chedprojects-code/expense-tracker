@@ -35,8 +35,10 @@ export function useExpenseData() {
   const [dark, setDark] = useLocalStorage('pref:dark', false)
   const [showBalance, setShowBalance] = useLocalStorage('pref:showBalance', true)
   const [hideAccountAmounts, setHideAccountAmounts] = useLocalStorage('pref:hideAccountAmounts', false)
+  const [hideLenderAmounts, setHideLenderAmounts] = useLocalStorage('pref:hideLenderAmounts', false)
   const [collapsed, setCollapsed] = useLocalStorage<Record<string, boolean>>('pref:collapsed', {})
   const [excludedAccounts, setExcludedAccounts] = useLocalStorage<string[]>('pref:excludedAccounts', [])
+  const [excludedLenders, setExcludedLenders] = useLocalStorage<string[]>('pref:excludedLenders', [])
 
   const toggleCollapse = useCallback((key: string) => {
     setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }))
@@ -47,6 +49,12 @@ export function useExpenseData() {
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     )
   }, [setExcludedAccounts])
+
+  const toggleExcludeLender = useCallback((id: string) => {
+    setExcludedLenders((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    )
+  }, [setExcludedLenders])
 
   // ── UI state ────────────────────────────────────────────────────────────────
   const [active, setActive] = useState('Home')
@@ -152,7 +160,8 @@ export function useExpenseData() {
   const totalLent = lenders.reduce((sum, l) => sum + l.amount, 0)
   const totalFutureExpenses = futureExpenses.reduce((sum, f) => sum + f.amount, 0)
   const netWorth = accounts.reduce((sum, a) => sum + a.balance, 0) + totalLent
-  const spendableWorth = accounts.filter((a) => !excludedAccounts.includes(a.id)).reduce((sum, a) => sum + a.balance, 0) + totalLent
+  const spendableLent = lenders.filter((lender) => !excludedLenders.includes(lender.id)).reduce((sum, lender) => sum + lender.amount, 0)
+  const spendableWorth = accounts.filter((a) => !excludedAccounts.includes(a.id)).reduce((sum, a) => sum + a.balance, 0) + spendableLent
   const netAfterFuture = netWorth - totalFutureExpenses
   const spendableAfterFuture = spendableWorth - totalFutureExpenses
   const goalPercent = goal ? Math.min(100, Math.round((goal.current_amount / goal.target_amount) * 100)) : 0
@@ -459,8 +468,9 @@ export function useExpenseData() {
     stats, chart, netWorth, netAfterFuture, spendableWorth, spendableAfterFuture, goalPercent, unreadCount,
     // ui prefs
     hideAccountAmounts, setHideAccountAmounts,
+    hideLenderAmounts, setHideLenderAmounts,
     collapsed, toggleCollapse,
-    excludedAccounts, toggleExcludeAccount,
+    excludedAccounts, toggleExcludeAccount, excludedLenders, toggleExcludeLender,
     // lenders
     lenders, totalLent,
     showLenderDialog, lenderDraft, setLenderDraft, editingLender,

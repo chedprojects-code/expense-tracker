@@ -41,12 +41,14 @@ export default function Page() {
     lenders, totalLent,
     showLenderDialog, lenderDraft, setLenderDraft, editingLender, openLender, closeLender, saveLender, removeLender,
     hideAccountAmounts, setHideAccountAmounts,
+    hideLenderAmounts, setHideLenderAmounts,
     collapsed, toggleCollapse,
-    excludedAccounts, toggleExcludeAccount,
+    excludedAccounts, toggleExcludeAccount, excludedLenders, toggleExcludeLender,
     futureExpenses, totalFutureExpenses,
     showFutureExpenseDialog, futureExpenseDraft, setFutureExpenseDraft, editingFutureExpense,
     openFutureExpense, closeFutureExpense, saveFutureExpense, removeFutureExpense,
   } = useExpenseData()
+  const hasSpendableExclusions = excludedAccounts.length > 0 || excludedLenders.length > 0
 
   if (authLoading || !user) return null
 
@@ -100,7 +102,7 @@ export default function Page() {
                         <button className="eye" onClick={() => setShowBalance(!showBalance)} aria-label="Toggle">{showBalance ? '◉' : '○'}</button>
                       </p>
                       <div className="net-value">{showBalance ? fmt(netWorth) : '••••••••'}</div>
-                      {excludedAccounts.length > 0 && (
+                      {hasSpendableExclusions && (
                         <div className="net-planned">
                           <span>spendable (excl. savings)</span>
                           <span style={{ color: '#8af0dc' }}>{showBalance ? fmt(spendableWorth) : '••••'}</span>
@@ -109,7 +111,7 @@ export default function Page() {
                       {totalFutureExpenses > 0 && (
                         <div className="net-planned">
                           <span>after future expenses</span>
-                          <span>{showBalance ? fmt(excludedAccounts.length > 0 ? spendableAfterFuture : netAfterFuture) : '••••'}</span>
+                          <span>{showBalance ? fmt(hasSpendableExclusions ? spendableAfterFuture : netAfterFuture) : '••••'}</span>
                         </div>
                       )}
                       <div className="trend">
@@ -309,7 +311,14 @@ export default function Page() {
                   <SectionTitle
                     eyebrow="MONEY OWED TO YOU"
                     title="Your lenders"
-                    action={<button className="text-button" onClick={() => openLender()}>+ Add <ChevronRight /></button>}
+                    action={
+                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                        <button className="icon-button" onClick={() => setHideLenderAmounts(!hideLenderAmounts)} aria-label={hideLenderAmounts ? 'Show lender amounts' : 'Hide lender amounts'}>
+                          {hideLenderAmounts ? <EyeOff style={{ width: 13 }} /> : <Eye style={{ width: 13 }} />}
+                        </button>
+                        <button className="text-button" onClick={() => openLender()}>+ Add <ChevronRight /></button>
+                      </div>
+                    }
                   />
                   {lenders.length === 0 ? (
                     <div className="glass-panel empty-notes" style={{ borderRadius: 20, padding: '24px 16px' }}>
@@ -321,7 +330,7 @@ export default function Page() {
                     <div className="glass-panel lenders-list">
                       <div className="lenders-total">
                         <span className="eyebrow">TOTAL OWED</span>
-                        <strong style={{ color: '#18ad99' }}>{fmt(totalLent)}</strong>
+                        <strong style={{ color: '#18ad99' }}>{hideLenderAmounts ? '••••' : fmt(totalLent)}</strong>
                       </div>
                       {lenders.map((lender) => (
                         <motion.div layout key={lender.id} className="lender-row">
@@ -330,8 +339,17 @@ export default function Page() {
                             <p>{lender.name}</p>
                             {lender.note && <small>{lender.note}</small>}
                           </div>
-                          <strong className="lender-amount">{fmt(lender.amount)}</strong>
+                          <strong className="lender-amount">{hideLenderAmounts || excludedLenders.includes(lender.id) ? '••••' : fmt(lender.amount)}</strong>
                           <div className="lender-actions">
+                            <button
+                              onClick={() => toggleExcludeLender(lender.id)}
+                              title={excludedLenders.includes(lender.id) ? 'Include in spendable' : 'Exclude from spendable'}
+                              aria-label={excludedLenders.includes(lender.id) ? `Include ${lender.name} in spendable` : `Exclude ${lender.name} from spendable`}
+                            >
+                              {excludedLenders.includes(lender.id)
+                                ? <EyeOff style={{ width: 11, color: '#d878a1' }} />
+                                : <Eye style={{ width: 11, color: 'var(--muted)' }} />}
+                            </button>
                             <button onClick={() => openLender(lender)}><Pencil style={{ width: 11 }} /></button>
                             <button onClick={() => removeLender(lender.id)}><Trash2 style={{ width: 11 }} /></button>
                           </div>
