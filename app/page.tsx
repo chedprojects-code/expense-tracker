@@ -3,7 +3,7 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { fmt } from '@/lib/supabase/db'
 import {
-  NoteDialog, AccountDialog, TxDialog,
+  NoteDialog, AccountDialog, TxDialog, LenderDialog,
 } from '@/components/dashboard/dialogs'
 import {
   NotificationsPanel, CategoryDetailsPanel, SpendingFlowPanel, HelpPanel,
@@ -12,9 +12,9 @@ import { GlassIcon, SectionTitle, toneColors, greeting } from '@/components/dash
 import { useExpenseData } from '@/components/dashboard/useExpenseData'
 import { InsightsView, NotesView, SettingsView } from '@/components/dashboard/views'
 import {
-  ArrowDownLeft, ArrowUpRight, Bell, ChevronLeft, ChevronRight,
-  CircleHelp, CreditCard, Home, LogOut, Moon, MoreHorizontal, Pencil, Plus,
-  Settings2, Sparkles, Sun, Target, Trash2, TrendingUp, WalletCards, X, Loader2,
+  ArrowDownLeft, ArrowUpRight, Bell, ChevronLeft, ChevronRight, ChevronDown,
+  CircleHelp, CreditCard, Eye, EyeOff, Home, LogOut, Moon, MoreHorizontal, Pencil, Plus,
+  Settings2, Sparkles, Sun, Target, Trash2, TrendingUp, WalletCards, X, Loader2, HandCoins,
 } from 'lucide-react'
 
 const navItems = [
@@ -34,10 +34,14 @@ export default function Page() {
     showAdd, setShowAdd,
     showNoteDialog, noteDraft, setNoteDraft, editingNote, openNote, closeNote, saveNote, removeNote,
     showAccountDialog, accountDraft, setAccountDraft, editingAccount, openAccount, closeAccount, saveAccount, removeAccount,
-    showTxDialog, setShowTxDialog, txDraft, setTxDraft, openTx, saveTx,
+    showTxDialog, setShowTxDialog, txDraft, setTxDraft, editingTx, openTx, saveTx, removeTx,
     goalDraft, setGoalDraft, saveGoal, profileDraft, setProfileDraft, savingProfile, saveProfile,
     handleMarkRead, profile, accounts, transactions, notes, goal, notifications,
     stats, chart: { incLine, expLine, incArea, dayLabels }, netWorth, goalPercent, unreadCount,
+    lenders, totalLent,
+    showLenderDialog, lenderDraft, setLenderDraft, editingLender, openLender, closeLender, saveLender, removeLender,
+    hideAccountAmounts, setHideAccountAmounts,
+    collapsed, toggleCollapse,
   } = useExpenseData()
 
   if (authLoading || !user) return null
@@ -52,21 +56,23 @@ export default function Page() {
       <section className="phone-frame">
         {/* ── Topbar ── */}
         <header className="topbar">
-          <div className="profile-wrap">
+          <div className="topbar-left">
             <div className="avatar">{profile?.initials ?? user.email?.[0]?.toUpperCase() ?? '?'}</div>
-            <div>
-              <p className="eyebrow">{greeting()}</p>
-              <h1>{profile?.name ?? user.email?.split('@')[0]} <span className="wave">✦</span></h1>
+            <div className="topbar-greeting">
+              <div className="topbar-greeting-row">
+                <p className="eyebrow">{greeting()}</p>
+                <div className="top-actions">
+                  <button aria-label="Help" onClick={() => setShowHelp(true)}><CircleHelp /></button>
+                  <button aria-label="Toggle dark mode" onClick={() => setDark(!dark)}>{dark ? <Sun /> : <Moon />}</button>
+                  <button aria-label="Notifications" className="notification" onClick={() => setShowNotifications(true)}>
+                    <Bell />
+                    {unreadCount > 0 && <i />}
+                  </button>
+                  <button aria-label="Sign out" onClick={signOut}><LogOut /></button>
+                </div>
+              </div>
+              <h1 className="topbar-name">{profile?.name ?? user.email?.split('@')[0]} <span className="wave">✦</span></h1>
             </div>
-          </div>
-          <div className="top-actions">
-            <button aria-label="Help" onClick={() => setShowHelp(true)}><CircleHelp /></button>
-            <button aria-label="Toggle dark mode" onClick={() => setDark(!dark)}>{dark ? <Sun /> : <Moon />}</button>
-            <button aria-label="Notifications" className="notification" onClick={() => setShowNotifications(true)}>
-              <Bell />
-              {unreadCount > 0 && <i />}
-            </button>
-            <button aria-label="Sign out" onClick={signOut}><LogOut /></button>
           </div>
         </header>
 
@@ -115,10 +121,15 @@ export default function Page() {
                           {viewPeriodLabel} <ChevronRight style={{ width: 13 }} />
                         </button>
                         <button className="month-button" style={{ padding: '6px 7px' }} onClick={() => shiftMonth(1)} aria-label="Next month"><ChevronRight style={{ width: 13 }} /></button>
+                        <button className="icon-button" style={{ marginLeft: 2 }} onClick={() => toggleCollapse('overview')} aria-label="Collapse">
+                          <ChevronDown style={{ width: 13, transform: collapsed['overview'] ? 'rotate(-90deg)' : 'none', transition: 'transform .2s' }} />
+                        </button>
                       </div>
                     }
                   />
 
+                  <AnimatePresence initial={false}>
+                    {!collapsed['overview'] && <motion.div key="overview" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} style={{ overflow: 'hidden' }}>
                   {/* Month picker dropdown */}
                   <AnimatePresence>
                     {showMonthPicker && (
@@ -134,7 +145,6 @@ export default function Page() {
                       </motion.div>
                     )}
                   </AnimatePresence>
-
                   {/* Stat cards */}
                   <section className="stat-grid">
                     <motion.div className="glass-panel stat-card" whileHover={{ y: -4 }}>
@@ -156,17 +166,24 @@ export default function Page() {
                       <div className="mini-bars expense"><i /><i /><i /><i /><i /><i /><i /></div>
                     </motion.div>
                   </section>
+                    </motion.div>}
+                  </AnimatePresence>
 
                   {/* Spending Flow chart */}
                   <SectionTitle
                     eyebrow="SPENDING FLOW"
                     title="Your activity"
                     action={
-                      <button className="icon-button" aria-label="View all activity" onClick={() => setShowSpendingFlow(true)}>
-                        <MoreHorizontal />
-                      </button>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button className="icon-button" aria-label="View all activity" onClick={() => setShowSpendingFlow(true)}><MoreHorizontal /></button>
+                        <button className="icon-button" onClick={() => toggleCollapse('flow')} aria-label="Collapse">
+                          <ChevronDown style={{ width: 13, transform: collapsed['flow'] ? 'rotate(-90deg)' : 'none', transition: 'transform .2s' }} />
+                        </button>
+                      </div>
                     }
                   />
+                  <AnimatePresence initial={false}>
+                    {!collapsed['flow'] && <motion.div key="flow" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} style={{ overflow: 'hidden' }}>
                   <section className="glass-panel chart-card">
                     <div className="chart-labels">
                       <span><i className="dot income-dot" /> Income</span>
@@ -184,13 +201,27 @@ export default function Page() {
                       {dayLabels.map((d) => <span key={d}>{d}</span>)}
                     </div>
                   </section>
+                    </motion.div>}
+                  </AnimatePresence>
 
                   {/* Accounts */}
                   <SectionTitle
                     eyebrow="YOUR ACCOUNTS"
                     title="Where your money lives"
-                    action={<button className="text-button" onClick={() => openAccount()}>+ Add <ChevronRight /></button>}
+                    action={
+                      <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                        <button className="icon-button" onClick={() => setHideAccountAmounts(!hideAccountAmounts)} aria-label="Toggle account amounts">
+                          {hideAccountAmounts ? <EyeOff style={{ width: 13 }} /> : <Eye style={{ width: 13 }} />}
+                        </button>
+                        <button className="text-button" onClick={() => openAccount()}>+ Add <ChevronRight /></button>
+                        <button className="icon-button" onClick={() => toggleCollapse('accounts')} aria-label="Collapse">
+                          <ChevronDown style={{ width: 13, transform: collapsed['accounts'] ? 'rotate(-90deg)' : 'none', transition: 'transform .2s' }} />
+                        </button>
+                      </div>
+                    }
                   />
+                  <AnimatePresence initial={false}>
+                    {!collapsed['accounts'] && <motion.div key="accounts" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} style={{ overflow: 'hidden' }}>
                   {accounts.length === 0 ? (
                     <div className="glass-panel empty-notes" style={{ borderRadius: 20, padding: '24px 16px' }}>
                       <CreditCard style={{ width: 24, color: '#7168db' }} />
@@ -204,7 +235,7 @@ export default function Page() {
                           <div className={`account-icon account-${acc.tone}`}>{acc.symbol}</div>
                           <p>{acc.name}</p>
                           <small>{acc.purpose}</small>
-                          <strong>{fmt(acc.balance)}</strong>
+                          <strong>{hideAccountAmounts ? '••••' : fmt(acc.balance)}</strong>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 11 }}>
                             <div className="account-dots"><i /><i /><i /></div>
                             <div style={{ display: 'flex', gap: 4 }}>
@@ -216,17 +247,59 @@ export default function Page() {
                       ))}
                     </div>
                   )}
+                    </motion.div>}
+                  </AnimatePresence>
+
+                  {/* Lenders */}
+                  <SectionTitle
+                    eyebrow="MONEY OWED TO YOU"
+                    title="Your lenders"
+                    action={<button className="text-button" onClick={() => openLender()}>+ Add <ChevronRight /></button>}
+                  />
+                  {lenders.length === 0 ? (
+                    <div className="glass-panel empty-notes" style={{ borderRadius: 20, padding: '24px 16px' }}>
+                      <HandCoins style={{ width: 24, color: '#7168db' }} />
+                      <p>No lenders yet</p>
+                      <button className="text-button" onClick={() => openLender()}>Track who owes you</button>
+                    </div>
+                  ) : (
+                    <div className="glass-panel lenders-list">
+                      <div className="lenders-total">
+                        <span className="eyebrow">TOTAL OWED</span>
+                        <strong style={{ color: '#18ad99' }}>{fmt(totalLent)}</strong>
+                      </div>
+                      {lenders.map((lender) => (
+                        <motion.div layout key={lender.id} className="lender-row">
+                          <div className="lender-avatar">{lender.name[0].toUpperCase()}</div>
+                          <div className="lender-info">
+                            <p>{lender.name}</p>
+                            {lender.note && <small>{lender.note}</small>}
+                          </div>
+                          <strong className="lender-amount">{fmt(lender.amount)}</strong>
+                          <div className="lender-actions">
+                            <button onClick={() => openLender(lender)}><Pencil style={{ width: 11 }} /></button>
+                            <button onClick={() => removeLender(lender.id)}><Trash2 style={{ width: 11 }} /></button>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Spending Breakdown */}
                   <SectionTitle
                     eyebrow="SPENDING BREAKDOWN"
                     title="By category"
                     action={
-                      <button className="text-button" onClick={() => setShowCategoryDetails(true)}>
-                        Details <ChevronRight />
-                      </button>
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button className="text-button" onClick={() => setShowCategoryDetails(true)}>Details <ChevronRight /></button>
+                        <button className="icon-button" onClick={() => toggleCollapse('breakdown')} aria-label="Collapse">
+                          <ChevronDown style={{ width: 13, transform: collapsed['breakdown'] ? 'rotate(-90deg)' : 'none', transition: 'transform .2s' }} />
+                        </button>
+                      </div>
                     }
                   />
+                  <AnimatePresence initial={false}>
+                    {!collapsed['breakdown'] && <motion.div key="breakdown" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} style={{ overflow: 'hidden' }}>
                   <section className="glass-panel categories-card">
                     <div className="donut">
                       <div className="donut-hole">
@@ -251,6 +324,8 @@ export default function Page() {
                       ))}
                     </div>
                   </section>
+                    </motion.div>}
+                  </AnimatePresence>
 
                   {/* Savings Goal */}
                   {goal && (
@@ -304,13 +379,20 @@ export default function Page() {
 
         {/* ── Bottom Nav ── */}
         <nav className="bottom-nav" aria-label="Primary navigation">
-          {navItems.map(({ label, icon: Icon }) => (
-            <button key={label} className={active === label ? 'nav-active' : ''} onClick={() => setActive(label)}>
-              <span><Icon /></span><small>{label}</small>
-            </button>
-          ))}
-          <button onClick={() => setShowAdd(true)}>
+          <button className={active === 'Home' ? 'nav-active' : ''} onClick={() => setActive('Home')}>
+            <span><Home /></span><small>Home</small>
+          </button>
+          <button className={active === 'Notes' ? 'nav-active' : ''} onClick={() => setActive('Notes')}>
+            <span><WalletCards /></span><small>Notes</small>
+          </button>
+          <button className="add-nav-btn" onClick={() => setShowAdd(true)}>
             <span className="add-button"><Plus /></span><small>Add</small>
+          </button>
+          <button className={active === 'Insights' ? 'nav-active' : ''} onClick={() => setActive('Insights')}>
+            <span><Sparkles /></span><small>Insights</small>
+          </button>
+          <button className={active === 'Settings' ? 'nav-active' : ''} onClick={() => setActive('Settings')}>
+            <span><Settings2 /></span><small>Settings</small>
           </button>
         </nav>
 
@@ -339,6 +421,10 @@ export default function Page() {
                     <GlassIcon tone="gold"><CreditCard /></GlassIcon>
                     <span>Account<small>Add a wallet</small></span>
                   </button>
+                  <button onClick={() => { setShowAdd(false); openLender() }}>
+                    <GlassIcon tone="teal"><HandCoins /></GlassIcon>
+                    <span>Lender<small>Track who owes you</small></span>
+                  </button>
                 </div>
               </motion.div>
             </motion.div>
@@ -348,12 +434,13 @@ export default function Page() {
         {/* ── Dialogs ── */}
         <NoteDialog open={showNoteDialog} draft={noteDraft} setDraft={setNoteDraft} onSave={saveNote} onClose={closeNote} isEditing={editingNote !== null} />
         <AccountDialog open={showAccountDialog} draft={accountDraft} setDraft={setAccountDraft} onSave={saveAccount} onClose={closeAccount} isEditing={editingAccount !== null} />
-        <TxDialog open={showTxDialog} draft={txDraft} setDraft={setTxDraft} onSave={saveTx} onClose={() => setShowTxDialog(false)} />
+        <TxDialog open={showTxDialog} draft={txDraft} setDraft={setTxDraft} onSave={saveTx} onClose={() => { setShowTxDialog(false) }} isEditing={editingTx !== null} />
+        <LenderDialog open={showLenderDialog} draft={lenderDraft} setDraft={setLenderDraft} onSave={saveLender} onClose={closeLender} isEditing={editingLender !== null} />
 
         {/* ── Panels ── */}
         <NotificationsPanel open={showNotifications} onClose={() => setShowNotifications(false)} notifications={notifications} onMarkRead={handleMarkRead} />
         <CategoryDetailsPanel open={showCategoryDetails} onClose={() => setShowCategoryDetails(false)} categories={stats.allCategories} transactions={transactions} month={viewMonth} year={viewYear} />
-        <SpendingFlowPanel open={showSpendingFlow} onClose={() => setShowSpendingFlow(false)} transactions={transactions} month={viewMonth} year={viewYear} />
+        <SpendingFlowPanel open={showSpendingFlow} onClose={() => setShowSpendingFlow(false)} transactions={transactions} month={viewMonth} year={viewYear} onEdit={(tx) => { setShowSpendingFlow(false); openTx(tx.type, tx) }} onDelete={removeTx} />
         <HelpPanel open={showHelp} onClose={() => setShowHelp(false)} />
       </section>
     </main>

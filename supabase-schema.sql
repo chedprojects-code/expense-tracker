@@ -104,4 +104,24 @@ alter table notifications enable row level security;
 drop policy if exists "Users can manage their own notifications" on notifications;
 create policy "Users can manage their own notifications" on notifications for all using (auth.uid() = user_id);
 
+-- Lenders (people who owe you money)
+create table if not exists lenders (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  name text not null,
+  amount numeric not null default 0,
+  note text default '',
+  created_at timestamptz default now()
+);
+
+alter table lenders enable row level security;
+drop policy if exists "Users can manage their own lenders" on lenders;
+create policy "Users can manage their own lenders" on lenders for all using (auth.uid() = user_id);
+
+-- Enable Realtime for live data refresh (run once)
+alter publication supabase_realtime add table transactions;
+alter publication supabase_realtime add table accounts;
+alter publication supabase_realtime add table notes;
+alter publication supabase_realtime add table lenders;
+
 notify pgrst, 'reload schema';

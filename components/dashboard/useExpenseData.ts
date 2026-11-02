@@ -6,15 +6,19 @@ import {
   getNotifications, markNotificationsRead,
   upsertNote, deleteNote,
   upsertAccount, deleteAccount,
-  upsertSavingsGoal, insertTransaction, updateProfile,
+  upsertSavingsGoal, insertTransaction, updateTransaction, deleteTransaction, updateProfile,
+  getLenders, upsertLender, deleteLender,
   calcStats, buildChartPaths,
-  type Account, type Note, type SavingsGoal, type Transaction, type Notification,
+  type Account, type Note, type SavingsGoal, type Transaction, type Notification, type Lender,
 } from '@/lib/supabase/db'
 import {
   createAccountDraft, createGoalDraft, createNoteDraft, createProfileDraft, createTxDraft,
+  createLenderDraft,
   generateId, getViewPeriodLabel, isFormValid, shiftMonth as getShiftedMonth,
 } from '@/lib/expense-utils'
-import type { GoalDraft } from '@/components/dashboard/types'
+import type { GoalDraft, LenderDraft } from '@/components/dashboard/types'
+import { createClient } from '@/lib/supabase/client'
+import { useLocalStorage } from '@/hooks/useLocalStorage'
 
 // ─── Hook ─────────────────────────────────────────────────────────────────────
 export function useExpenseData() {
@@ -26,10 +30,18 @@ export function useExpenseData() {
     if (!authLoading && !user) router.replace('/login')
   }, [user, authLoading, router])
 
+  // ── Persisted UI prefs ──────────────────────────────────────────────────────
+  const [dark, setDark] = useLocalStorage('pref:dark', false)
+  const [showBalance, setShowBalance] = useLocalStorage('pref:showBalance', true)
+  const [hideAccountAmounts, setHideAccountAmounts] = useLocalStorage('pref:hideAccountAmounts', false)
+  const [collapsed, setCollapsed] = useLocalStorage<Record<string, boolean>>('pref:collapsed', {})
+
+  const toggleCollapse = useCallback((key: string) => {
+    setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }))
+  }, [setCollapsed])
+
   // ── UI state ────────────────────────────────────────────────────────────────
   const [active, setActive] = useState('Home')
-  const [dark, setDark] = useState(false)
-  const [showBalance, setShowBalance] = useState(true)
   const [dataLoading, setDataLoading] = useState(true)
   const [viewMonth, setViewMonth] = useState(() => new Date().getMonth())
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear())
@@ -52,7 +64,12 @@ export function useExpenseData() {
   const [accountDraft, setAccountDraft] = useState(() => createAccountDraft())
 
   const [showTxDialog, setShowTxDialog] = useState(false)
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null)
   const [txDraft, setTxDraft] = useState(() => createTxDraft())
+
+  const [showLenderDialog, setShowLenderDialog] = useState(false)
+  const [editingLender, setEditingLender] = useState<Lender | null>(null)
+  const [lenderDraft, setLenderDraft] = useState<LenderDraft>(() => createLenderDraft())
 
   const [goalDraft, setGoalDraft] = useState<GoalDraft>(() => createGoalDraft())
   const [profileDraft, setProfileDraft] = useState(() => createProfileDraft())
@@ -65,19 +82,21 @@ export function useExpenseData() {
   const [notes, setNotes] = useState<Note[]>([])
   const [goal, setGoal] = useState<SavingsGoal | null>(null)
   const [notifications, setNotifications] = useState<Notification[]>([])
+  const [lenders, setLenders] = useState<Lender[]>([])
 
   // ── Load all data ───────────────────────────────────────────────────────────
   const loadData = useCallback(async () => {
     if (!user) return
     setDataLoading(true)
     try {
-      const [p, a, t, n, g, notifs] = await Promise.all([
+      const [p, a, t, n, g, notifs, lnds] = await Promise.all([
         getProfile(user.id),
         getAccounts(user.id),
         getTransactions(user.id),
         getNotes(user.id),
         getSavingsGoal(user.id),
         getNotifications(user.id),
+        getLenders(user.id),
       ])
       setProfile(p)
       setAccounts(a)
@@ -85,6 +104,7 @@ export function useExpenseData() {
       setNotes(n)
       setGoal(g)
       setNotifications(notifs)
+      setLenders(lnds)
       if (p) setProfileDraft(createProfileDraft(p))
       if (g) setGoalDraft(createGoalDraft(g))
     } catch (err) {
@@ -96,10 +116,25 @@ export function useExpenseData() {
 
   useEffect(() => { loadData() }, [loadData])
 
+  // ── Realtime subscriptions ──────────────────────────────────────────────────
+  useEffect(() => {
+    if (!user) return
+    const supabase = createClient()
+    const channel = supabase
+      .channel('db-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: `user_id=eq.${user.id}` }, () => loadData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'accounts', filter: `user_id=eq.${user.id}` }, () => loadData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notes', filter: `user_id=eq.${user.id}` }, () => loadData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'lenders', filter: `user_id=eq.${user.id}` }, () => loadData())
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }, [user, loadData])
+
   // ── Derived values ──────────────────────────────────────────────────────────
   const stats = calcStats(transactions, viewMonth, viewYear)
   const chart = buildChartPaths(transactions, viewMonth, viewYear)
-  const netWorth = accounts.reduce((sum, a) => sum + a.balance, 0)
+  const totalLent = lenders.reduce((sum, l) => sum + l.amount, 0)
+  const netWorth = accounts.reduce((sum, a) => sum + a.balance, 0) + totalLent
   const goalPercent = goal ? Math.min(100, Math.round((goal.current_amount / goal.target_amount) * 100)) : 0
   const unreadCount = notifications.filter((n) => !n.read).length
   const viewPeriodLabel = getViewPeriodLabel(viewYear, viewMonth)
@@ -199,28 +234,49 @@ export function useExpenseData() {
   }, [])
 
   // ── Transactions ────────────────────────────────────────────────────────────
-  const openTx = useCallback((type: 'income' | 'expense' = 'expense') => {
-    setTxDraft(createTxDraft(type))
+  const openTx = useCallback((type: 'income' | 'expense' = 'expense', tx?: Transaction) => {
+    setEditingTx(tx ?? null)
+    setTxDraft(tx ? { type: tx.type, amount: String(tx.amount), category: tx.category, description: tx.description, date: tx.date } : createTxDraft(type))
     setShowTxDialog(true)
   }, [])
 
   const saveTx = useCallback(async () => {
     if (!user || !isFormValid(txDraft, ['amount'])) return
     try {
-      await insertTransaction({
-        user_id: user.id,
-        type: txDraft.type,
-        amount: parseFloat(txDraft.amount),
-        category: txDraft.category,
-        description: txDraft.description,
-        date: txDraft.date,
-      })
+      if (editingTx) {
+        await updateTransaction(editingTx.id, {
+          type: txDraft.type,
+          amount: parseFloat(txDraft.amount),
+          category: txDraft.category,
+          description: txDraft.description,
+          date: txDraft.date,
+        })
+      } else {
+        await insertTransaction({
+          user_id: user.id,
+          type: txDraft.type,
+          amount: parseFloat(txDraft.amount),
+          category: txDraft.category,
+          description: txDraft.description,
+          date: txDraft.date,
+        })
+      }
       setShowTxDialog(false)
+      setEditingTx(null)
       await loadData()
     } catch (err) {
       console.error('[saveTx]', err)
     }
-  }, [txDraft, user, loadData])
+  }, [txDraft, editingTx, user, loadData])
+
+  const removeTx = useCallback(async (id: string) => {
+    try {
+      await deleteTransaction(id)
+      setTransactions((prev) => prev.filter((x) => x.id !== id))
+    } catch (err) {
+      console.error('[removeTx]', err)
+    }
+  }, [])
 
   // ── Savings Goal ────────────────────────────────────────────────────────────
   const saveGoal = useCallback(async () => {
@@ -256,6 +312,44 @@ export function useExpenseData() {
     }
   }, [profileDraft, user, loadData])
 
+  // ── Lenders CRUD ────────────────────────────────────────────────────────────
+  const openLender = useCallback((lender?: Lender) => {
+    setEditingLender(lender ?? null)
+    setLenderDraft(createLenderDraft(lender))
+    setShowLenderDialog(true)
+  }, [])
+
+  const closeLender = useCallback(() => {
+    setShowLenderDialog(false)
+    setEditingLender(null)
+  }, [])
+
+  const saveLender = useCallback(async () => {
+    if (!user || !isFormValid(lenderDraft, ['name', 'amount'])) return
+    try {
+      await upsertLender({
+        id: editingLender?.id ?? generateId(),
+        user_id: user.id,
+        name: lenderDraft.name,
+        amount: parseFloat(lenderDraft.amount),
+        note: lenderDraft.note,
+      })
+      closeLender()
+      await loadData()
+    } catch (err) {
+      console.error('[saveLender]', err)
+    }
+  }, [lenderDraft, editingLender, user, closeLender, loadData])
+
+  const removeLender = useCallback(async (id: string) => {
+    try {
+      await deleteLender(id)
+      setLenders((prev) => prev.filter((x) => x.id !== id))
+    } catch (err) {
+      console.error('[removeLender]', err)
+    }
+  }, [])
+
   // ── Notifications ───────────────────────────────────────────────────────────
   const handleMarkRead = useCallback(async () => {
     if (!user) return
@@ -274,6 +368,8 @@ export function useExpenseData() {
     active, setActive,
     dark, setDark,
     showBalance, setShowBalance,
+    hideAccountAmounts, setHideAccountAmounts,
+    collapsed, toggleCollapse,
     dataLoading,
     // month
     viewMonth, viewYear, viewPeriodLabel,
@@ -292,8 +388,8 @@ export function useExpenseData() {
     showAccountDialog, accountDraft, setAccountDraft, editingAccount,
     openAccount, closeAccount, saveAccount, removeAccount,
     // tx dialog
-    showTxDialog, setShowTxDialog, txDraft, setTxDraft,
-    openTx, saveTx,
+    showTxDialog, setShowTxDialog, txDraft, setTxDraft, editingTx,
+    openTx, saveTx, removeTx,
     // goal
     goalDraft, setGoalDraft, saveGoal,
     // profile
@@ -304,6 +400,10 @@ export function useExpenseData() {
     profile, accounts, transactions, notes, goal, notifications,
     // derived
     stats, chart, netWorth, goalPercent, unreadCount,
+    // lenders
+    lenders, totalLent,
+    showLenderDialog, lenderDraft, setLenderDraft, editingLender,
+    openLender, closeLender, saveLender, removeLender,
     // reload
     loadData,
   }

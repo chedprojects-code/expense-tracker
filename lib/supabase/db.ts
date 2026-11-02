@@ -124,6 +124,12 @@ export async function deleteTransaction(id: string) {
   throwOnSupabaseError(error)
 }
 
+export async function updateTransaction(id: string, updates: Partial<Omit<Transaction, 'id' | 'user_id' | 'created_at'>>) {
+  const supabase = createClient()
+  const { error } = await supabase.from('transactions').update(updates).eq('id', id)
+  throwOnSupabaseError(error)
+}
+
 // ─── Stats & Chart ───────────────────────────────────────────────────────────
 export function calcStats(transactions: Transaction[], month: number, year: number) {
   const inMonth = (t: Transaction, m: number, y: number) => {
@@ -296,5 +302,34 @@ export async function getNotifications(userId: string): Promise<Notification[]> 
 export async function markNotificationsRead(userId: string) {
   const supabase = createClient()
   const { error } = await supabase.from('notifications').update({ read: true }).eq('user_id', userId).eq('read', false)
+  throwOnSupabaseError(error)
+}
+
+// ─── Lenders ──────────────────────────────────────────────────────────────────
+export type Lender = {
+  id: string
+  user_id: string
+  name: string
+  amount: number
+  note: string
+  created_at: string
+}
+
+export async function getLenders(userId: string): Promise<Lender[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase.from('lenders').select('*').eq('user_id', userId).order('created_at', { ascending: false })
+  throwOnSupabaseError(error)
+  return data ?? []
+}
+
+export async function upsertLender(lender: Omit<Lender, 'created_at'>) {
+  const supabase = createClient()
+  const { error } = await supabase.from('lenders').upsert(lender)
+  throwOnSupabaseError(error)
+}
+
+export async function deleteLender(id: string) {
+  const supabase = createClient()
+  const { error } = await supabase.from('lenders').delete().eq('id', id)
   throwOnSupabaseError(error)
 }

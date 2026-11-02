@@ -1,6 +1,6 @@
 'use client'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Bell, CheckCheck, ChevronRight, CircleHelp, X } from 'lucide-react'
+import { Bell, CheckCheck, ChevronRight, CircleHelp, Pencil, Trash2, X } from 'lucide-react'
 import { toneColors, GlassIcon } from './ui'
 import { fmt, type Notification, type Transaction } from '@/lib/supabase/db'
 
@@ -125,12 +125,14 @@ export function CategoryDetailsPanel({ open, onClose, categories, transactions, 
 }
 
 // ─── Spending Flow Details Panel ──────────────────────────────────────────────
-export function SpendingFlowPanel({ open, onClose, transactions, month, year }: {
+export function SpendingFlowPanel({ open, onClose, transactions, month, year, onEdit, onDelete }: {
   open: boolean
   onClose: () => void
   transactions: Transaction[]
   month: number
   year: number
+  onEdit: (tx: Transaction) => void
+  onDelete: (id: string) => void
 }) {
   const monthTxns = transactions
     .filter((t) => { const d = new Date(t.date); return d.getMonth() === month && d.getFullYear() === year })
@@ -167,6 +169,10 @@ export function SpendingFlowPanel({ open, onClose, transactions, month, year }: 
               <strong style={{ fontSize: 12, color: t.type === 'income' ? '#18ad99' : '#d878a1' }}>
                 {t.type === 'income' ? '+' : '-'}{fmt(t.amount)}
               </strong>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button onClick={() => onEdit(t)} style={{ width: 26, height: 26, display: 'grid', placeItems: 'center', borderRadius: 8, background: 'var(--surface)', color: 'var(--muted)', border: '1px solid var(--line)' }}><Pencil style={{ width: 11 }} /></button>
+                <button onClick={() => onDelete(t.id)} style={{ width: 26, height: 26, display: 'grid', placeItems: 'center', borderRadius: 8, background: 'var(--surface)', color: 'var(--muted)', border: '1px solid var(--line)' }}><Trash2 style={{ width: 11 }} /></button>
+              </div>
             </div>
           ))}
         </div>
