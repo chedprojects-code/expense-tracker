@@ -60,54 +60,68 @@ export type Notification = {
 export const fmt = (n: number) =>
   'NGN ' + n.toLocaleString('en-NG', { minimumFractionDigits: 0, maximumFractionDigits: 0 })
 
+function throwOnSupabaseError(error: { message: string } | null): void {
+  if (error) throw new Error(error.message)
+}
+
 // ─── Profile ────────────────────────────────────────────────────────────────
 export async function getProfile(userId: string): Promise<Profile | null> {
   const supabase = createClient()
-  const { data } = await supabase.from('profiles').select('*').eq('id', userId).single()
+  const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle()
+  throwOnSupabaseError(error)
   return data
 }
 
 export async function updateProfile(userId: string, updates: Partial<Pick<Profile, 'name' | 'initials'>>) {
   const supabase = createClient()
-  return supabase.from('profiles').update(updates).eq('id', userId)
+  const { error } = await supabase
+    .from('profiles')
+    .upsert({ id: userId, ...updates, updated_at: new Date().toISOString() })
+  throwOnSupabaseError(error)
 }
 
 // ─── Accounts ───────────────────────────────────────────────────────────────
 export async function getAccounts(userId: string): Promise<Account[]> {
   const supabase = createClient()
-  const { data } = await supabase.from('accounts').select('*').eq('user_id', userId).order('created_at')
+  const { data, error } = await supabase.from('accounts').select('*').eq('user_id', userId).order('created_at')
+  throwOnSupabaseError(error)
   return data ?? []
 }
 
 export async function upsertAccount(account: Omit<Account, 'created_at'>) {
   const supabase = createClient()
-  return supabase.from('accounts').upsert(account)
+  const { error } = await supabase.from('accounts').upsert(account)
+  throwOnSupabaseError(error)
 }
 
 export async function deleteAccount(id: string) {
   const supabase = createClient()
-  return supabase.from('accounts').delete().eq('id', id)
+  const { error } = await supabase.from('accounts').delete().eq('id', id)
+  throwOnSupabaseError(error)
 }
 
 // ─── Transactions ────────────────────────────────────────────────────────────
 export async function getTransactions(userId: string): Promise<Transaction[]> {
   const supabase = createClient()
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('transactions')
     .select('*')
     .eq('user_id', userId)
     .order('date', { ascending: false })
+  throwOnSupabaseError(error)
   return data ?? []
 }
 
 export async function insertTransaction(tx: Omit<Transaction, 'id' | 'created_at'>) {
   const supabase = createClient()
-  return supabase.from('transactions').insert(tx)
+  const { error } = await supabase.from('transactions').insert(tx)
+  throwOnSupabaseError(error)
 }
 
 export async function deleteTransaction(id: string) {
   const supabase = createClient()
-  return supabase.from('transactions').delete().eq('id', id)
+  const { error } = await supabase.from('transactions').delete().eq('id', id)
+  throwOnSupabaseError(error)
 }
 
 // ─── Stats & Chart ───────────────────────────────────────────────────────────
@@ -231,49 +245,56 @@ export function buildChartPaths(transactions: Transaction[], month: number, year
 // ─── Notes ───────────────────────────────────────────────────────────────────
 export async function getNotes(userId: string): Promise<Note[]> {
   const supabase = createClient()
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('notes')
     .select('*')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
+  throwOnSupabaseError(error)
   return data ?? []
 }
 
 export async function upsertNote(note: Omit<Note, 'created_at'>) {
   const supabase = createClient()
-  return supabase.from('notes').upsert({ ...note, updated_at: new Date().toISOString() })
+  const { error } = await supabase.from('notes').upsert({ ...note, updated_at: new Date().toISOString() })
+  throwOnSupabaseError(error)
 }
 
 export async function deleteNote(id: string) {
   const supabase = createClient()
-  return supabase.from('notes').delete().eq('id', id)
+  const { error } = await supabase.from('notes').delete().eq('id', id)
+  throwOnSupabaseError(error)
 }
 
 // ─── Savings Goal ─────────────────────────────────────────────────────────────
 export async function getSavingsGoal(userId: string): Promise<SavingsGoal | null> {
   const supabase = createClient()
-  const { data } = await supabase.from('savings_goals').select('*').eq('user_id', userId).single()
+  const { data, error } = await supabase.from('savings_goals').select('*').eq('user_id', userId).maybeSingle()
+  throwOnSupabaseError(error)
   return data
 }
 
 export async function upsertSavingsGoal(goal: Omit<SavingsGoal, 'updated_at'>) {
   const supabase = createClient()
-  return supabase.from('savings_goals').upsert({ ...goal, updated_at: new Date().toISOString() })
+  const { error } = await supabase.from('savings_goals').upsert({ ...goal, updated_at: new Date().toISOString() })
+  throwOnSupabaseError(error)
 }
 
 // ─── Notifications ────────────────────────────────────────────────────────────
 export async function getNotifications(userId: string): Promise<Notification[]> {
   const supabase = createClient()
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from('notifications')
     .select('*')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(20)
+  throwOnSupabaseError(error)
   return data ?? []
 }
 
 export async function markNotificationsRead(userId: string) {
   const supabase = createClient()
-  return supabase.from('notifications').update({ read: true }).eq('user_id', userId).eq('read', false)
+  const { error } = await supabase.from('notifications').update({ read: true }).eq('user_id', userId).eq('read', false)
+  throwOnSupabaseError(error)
 }

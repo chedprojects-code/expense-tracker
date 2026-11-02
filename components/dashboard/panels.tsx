@@ -8,7 +8,7 @@ const slide = {
   initial: { x: '100%' },
   animate: { x: 0 },
   exit: { x: '100%' },
-  transition: { type: 'spring', stiffness: 340, damping: 32 },
+  transition: { type: 'spring' as const, stiffness: 340, damping: 32 },
 }
 
 function Panel({ open, onClose, title, eyebrow, children }: {

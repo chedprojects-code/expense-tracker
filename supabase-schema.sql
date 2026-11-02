@@ -80,10 +80,15 @@ alter table transactions enable row level security;
 alter table notes enable row level security;
 alter table savings_goals enable row level security;
 
+drop policy if exists "Users can manage their own profile" on profiles;
 create policy "Users can manage their own profile" on profiles for all using (auth.uid() = id);
+drop policy if exists "Users can manage their own accounts" on accounts;
 create policy "Users can manage their own accounts" on accounts for all using (auth.uid() = user_id);
+drop policy if exists "Users can manage their own transactions" on transactions;
 create policy "Users can manage their own transactions" on transactions for all using (auth.uid() = user_id);
+drop policy if exists "Users can manage their own notes" on notes;
 create policy "Users can manage their own notes" on notes for all using (auth.uid() = user_id);
+drop policy if exists "Users can manage their own goals" on savings_goals;
 create policy "Users can manage their own goals" on savings_goals for all using (auth.uid() = user_id);
 
 -- Notifications
@@ -96,4 +101,7 @@ create table if not exists notifications (
 );
 
 alter table notifications enable row level security;
+drop policy if exists "Users can manage their own notifications" on notifications;
 create policy "Users can manage their own notifications" on notifications for all using (auth.uid() = user_id);
+
+notify pgrst, 'reload schema';
