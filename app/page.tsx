@@ -258,7 +258,7 @@ export default function Page() {
                   ) : (
                     <div className="account-row">
                       {accounts.filter((a) => !a.is_vault).map((acc, i) => (
-                        <motion.article whileHover={{ y: -5 }} className={`account-card ${i === 0 ? 'active-account' : ''} ${excludedAccounts.includes(acc.id) ? 'account-excluded' : ''}`} key={acc.id}>
+                        <motion.article whileHover={{ y: -5 }} className={`account-card ${excludedAccounts.includes(acc.id) ? 'account-excluded' : ''}`} key={acc.id}>
                           <div className={`account-icon account-${acc.tone}`}>{acc.symbol}</div>
                           <p>{acc.name}</p>
                           <small>{acc.purpose}{acc.annual_interest > 0 ? ` · ${acc.annual_interest}% p.a.` : ''}</small>
