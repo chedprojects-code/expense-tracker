@@ -79,10 +79,10 @@ export default function Page() {
                 <div className="top-actions">
                   <button aria-label="Help" onClick={() => setShowHelp(true)}><CircleHelp /></button>
                   <button aria-label="Toggle dark mode" onClick={() => setDark(!dark)}>{dark ? <Sun /> : <Moon />}</button>
-                  <button aria-label="Notifications" className="notification" onClick={() => setShowNotifications(true)}>
+                  {/* <button aria-label="Notifications" className="notification" onClick={() => setShowNotifications(true)}>
                     <Bell />
                     {unreadCount > 0 && <i />}
-                  </button>
+                  </button> */}
                   <button aria-label="Settings" onClick={() => setActive('Settings')}><Settings2 /></button>
                   <button aria-label="Sign out" onClick={signOut}><LogOut /></button>
                 </div>
@@ -249,7 +249,7 @@ export default function Page() {
                   />
                   <AnimatePresence initial={false}>
                     {!collapsed['accounts'] && <motion.div key="accounts" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} style={{ overflow: 'hidden' }}>
-                  {accounts.length === 0 ? (
+                  {accounts.filter((a) => !a.is_vault).length === 0 ? (
                     <div className="glass-panel empty-notes" style={{ borderRadius: 20, padding: '24px 16px' }}>
                       <CreditCard style={{ width: 24, color: '#7168db' }} />
                       <p>No accounts yet</p>
@@ -257,7 +257,7 @@ export default function Page() {
                     </div>
                   ) : (
                     <div className="account-row">
-                      {accounts.map((acc, i) => (
+                      {accounts.filter((a) => !a.is_vault).map((acc, i) => (
                         <motion.article whileHover={{ y: -5 }} className={`account-card ${i === 0 ? 'active-account' : ''} ${excludedAccounts.includes(acc.id) ? 'account-excluded' : ''}`} key={acc.id}>
                           <div className={`account-icon account-${acc.tone}`}>{acc.symbol}</div>
                           <p>{acc.name}</p>
