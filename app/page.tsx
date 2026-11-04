@@ -46,6 +46,7 @@ export default function Page() {
     hideLenderAmounts, setHideLenderAmounts,
     collapsed, toggleCollapse,
     excludedAccounts, toggleExcludeAccount, excludedLenders, toggleExcludeLender,
+    hiddenLenders, toggleHideLender, hiddenLendersTotal,
     futureExpenses, totalFutureExpenses,
     showFutureExpenseDialog, futureExpenseDraft, setFutureExpenseDraft, editingFutureExpense,
     openFutureExpense, closeFutureExpense, saveFutureExpense, removeFutureExpense,
@@ -340,7 +341,10 @@ export default function Page() {
                     <div className="glass-panel lenders-list">
                       <div className="lenders-total">
                         <span className="eyebrow">TOTAL OWED</span>
-                        <strong style={{ color: '#18ad99' }}>{hideLenderAmounts ? '••••' : fmt(totalLent)}</strong>
+                        <strong style={{ color: '#18ad99' }}>{hideLenderAmounts ? '••••' : fmt(totalLent - hiddenLendersTotal)}</strong>
+                        {hiddenLendersTotal > 0 && (
+                          <small style={{ color: 'var(--muted)', marginLeft: 6 }}>({fmt(hiddenLendersTotal)} hidden)</small>
+                        )}
                       </div>
                       {lenders.map((lender) => (
                         <motion.div layout key={lender.id} className="lender-row">
@@ -349,14 +353,16 @@ export default function Page() {
                             <p>{lender.name}</p>
                             {lender.note && <small>{lender.note}</small>}
                           </div>
-                          <strong className="lender-amount">{hideLenderAmounts || excludedLenders.includes(lender.id) ? '••••' : fmt(lender.amount)}</strong>
+                          <strong className="lender-amount" style={{ color: hiddenLenders.includes(lender.id) ? 'var(--muted)' : undefined }}>
+                            {hideLenderAmounts || hiddenLenders.includes(lender.id) ? '••••' : fmt(lender.amount)}
+                          </strong>
                           <div className="lender-actions">
                             <button
-                              onClick={() => toggleExcludeLender(lender.id)}
-                              title={excludedLenders.includes(lender.id) ? 'Include in spendable' : 'Exclude from spendable'}
-                              aria-label={excludedLenders.includes(lender.id) ? `Include ${lender.name} in spendable` : `Exclude ${lender.name} from spendable`}
+                              onClick={() => toggleHideLender(lender.id)}
+                              title={hiddenLenders.includes(lender.id) ? 'Reveal from net worth' : 'Hide from net worth'}
+                              aria-label={hiddenLenders.includes(lender.id) ? `Reveal ${lender.name}` : `Hide ${lender.name} from net worth`}
                             >
-                              {excludedLenders.includes(lender.id)
+                              {hiddenLenders.includes(lender.id)
                                 ? <EyeOff style={{ width: 11, color: '#d878a1' }} />
                                 : <Eye style={{ width: 11, color: 'var(--muted)' }} />}
                             </button>

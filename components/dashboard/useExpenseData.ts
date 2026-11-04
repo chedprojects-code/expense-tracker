@@ -41,6 +41,7 @@ export function useExpenseData() {
   const [collapsed, setCollapsed] = useLocalStorage<Record<string, boolean>>('pref:collapsed', {})
   const [excludedAccounts, setExcludedAccounts] = useLocalStorage<string[]>('pref:excludedAccounts', [])
   const [excludedLenders, setExcludedLenders] = useLocalStorage<string[]>('pref:excludedLenders', [])
+  const [hiddenLenders, setHiddenLenders] = useLocalStorage<string[]>('pref:hiddenLenders', [])
 
   const toggleCollapse = useCallback((key: string) => {
     setCollapsed((prev) => ({ ...prev, [key]: !prev[key] }))
@@ -57,6 +58,12 @@ export function useExpenseData() {
       prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
     )
   }, [setExcludedLenders])
+
+  const toggleHideLender = useCallback((id: string) => {
+    setHiddenLenders((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    )
+  }, [setHiddenLenders])
 
   // ── UI state ────────────────────────────────────────────────────────────────
   const [active, setActive] = useState('Home')
@@ -175,7 +182,8 @@ export function useExpenseData() {
   const vaultAccounts = accounts.filter((a) => a.is_vault)
   const vaultTotal = vaultAccounts.reduce((sum, a) => sum + a.balance, 0)
   const hiddenVaultTotal = vaultAccounts.filter((a) => a.vault_hidden).reduce((sum, a) => sum + a.balance, 0)
-  const netWorth = accounts.reduce((sum, a) => sum + a.balance, 0) + totalLent - hiddenVaultTotal
+  const hiddenLendersTotal = lenders.filter((l) => hiddenLenders.includes(l.id)).reduce((sum, l) => sum + l.amount, 0)
+  const netWorth = accounts.reduce((sum, a) => sum + a.balance, 0) + totalLent - hiddenVaultTotal - hiddenLendersTotal
   const spendableLent = lenders.filter((lender) => !excludedLenders.includes(lender.id)).reduce((sum, lender) => sum + lender.amount, 0)
   const spendableWorth = accounts.filter((a) => !excludedAccounts.includes(a.id) && !(a.is_vault && a.vault_hidden)).reduce((sum, a) => sum + a.balance, 0) + spendableLent
   const netAfterFuture = netWorth - totalFutureExpenses
@@ -522,6 +530,7 @@ export function useExpenseData() {
     hideLenderAmounts, setHideLenderAmounts,
     collapsed, toggleCollapse,
     excludedAccounts, toggleExcludeAccount, excludedLenders, toggleExcludeLender,
+    hiddenLenders, toggleHideLender, hiddenLendersTotal,
     // lenders
     lenders, totalLent,
     showLenderDialog, lenderDraft, setLenderDraft, editingLender,
