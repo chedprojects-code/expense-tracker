@@ -4,7 +4,7 @@ import type { Dispatch, SetStateAction } from 'react'
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Calendar, CreditCard, Loader2, Pencil, Plus, Save, Sparkles, Trash2, WalletCards, FileText, X, StickyNote,
+  Calendar, CreditCard, Loader2, Pencil, Plus, Save, Sparkles, Trash2, WalletCards, FileText, X, StickyNote, Eye,
 } from 'lucide-react'
 import { calcStats, fmt, type Note, type PlainNote, type SavingsGoal, type Transaction } from '@/lib/supabase/db'
 import type { GoalDraft, NoteDraft } from '@/components/dashboard/types'
@@ -25,6 +25,8 @@ export function NotesView({ notes, onAdd, onEdit, onDelete, plainNotes, onSavePl
   const [draftTitle, setDraftTitle] = useState('')
   const [draftBody, setDraftBody] = useState('')
 
+  const [viewing, setViewing] = useState<import('@/lib/supabase/db').PlainNote | null>(null)
+
   const openAdd = () => { setEditing(null); setDraftTitle(''); setDraftBody(''); setShowDialog(true) }
   const openEdit = (n: import('@/lib/supabase/db').PlainNote) => { setEditing(n); setDraftTitle(n.title); setDraftBody(n.body); setShowDialog(true) }
   const handleSave = async () => {
@@ -34,6 +36,7 @@ export function NotesView({ notes, onAdd, onEdit, onDelete, plainNotes, onSavePl
   }
 
   const notesTotal = notes.reduce((sum, n) => sum + n.amount, 0)
+  const truncate = (str: string, max = 50) => str.length > max ? str.slice(0, max) + '…' : str
 
   return (
     <section className="notes-page">
@@ -101,19 +104,34 @@ export function NotesView({ notes, onAdd, onEdit, onDelete, plainNotes, onSavePl
         <div className="notes-list">
           <AnimatePresence>
             {plainNotes.map((n) => (
-              <motion.article layout key={n.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} className="glass-panel note-card plain-note-card">
+              <motion.article
+                layout key={n.id}
+                initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
+                className="glass-panel note-card plain-note-card"
+                style={{ cursor: 'pointer' }}
+                onClick={() => setViewing(n)}
+              >
                 <div className="note-card-top">
                   <GlassIcon tone="violet"><FileText /></GlassIcon>
                   <span className="note-tag" style={{ background: '#e7e4ff', color: '#7168db' }}>Note</span>
-                  <div className="note-actions">
+                  <div className="note-actions" onClick={(e) => e.stopPropagation()}>
                     <button onClick={() => openEdit(n)}><Pencil /></button>
                     <button onClick={() => onDeletePlainNote(n.id)}><Trash2 /></button>
                   </div>
                 </div>
                 <h3>{n.title}</h3>
-                {n.body && <p className="plain-note-body">{n.body}</p>}
-                <div className="note-meta">
+                {n.body && (
+                  <p className="plain-note-body" style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
+                    {truncate(n.body)}
+                  </p>
+                )}
+                <div className="note-meta" style={{ marginTop: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <small>{new Date(n.created_at).toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' })}</small>
+                  {n.body && n.body.length > 50 && (
+                    <span style={{ fontSize: 9, color: '#7168db', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 3 }}>
+                      <Eye style={{ width: 9 }} /> Read more
+                    </span>
+                  )}
                 </div>
               </motion.article>
             ))}
@@ -127,6 +145,52 @@ export function NotesView({ notes, onAdd, onEdit, onDelete, plainNotes, onSavePl
           )}
         </div>
       )}
+
+      {/* Plain note view modal */}
+      <AnimatePresence>
+        {viewing && (
+          <motion.div
+            className="modal-backdrop"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            onClick={() => setViewing(null)}
+          >
+            <motion.div
+              className="note-dialog glass-panel"
+              initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{ maxHeight: '80vh', overflowY: 'auto' }}
+            >
+              <button className="close-button" onClick={() => setViewing(null)}><X /></button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <GlassIcon tone="violet"><FileText /></GlassIcon>
+                <div>
+                  <p style={{ margin: 0, fontSize: 9, color: 'var(--muted)', fontWeight: 700, letterSpacing: '.06em' }}>PLAIN NOTE</p>
+                  <h2 style={{ margin: 0, fontSize: 17, lineHeight: 1.3 }}>{viewing.title}</h2>
+                </div>
+              </div>
+              {viewing.body ? (
+                <p style={{ margin: 0, fontSize: 13, lineHeight: 1.75, color: 'var(--ink)', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                  {viewing.body}
+                </p>
+              ) : (
+                <p style={{ color: 'var(--muted)', fontSize: 12, fontStyle: 'italic' }}>No content.</p>
+              )}
+              <div style={{ marginTop: 18, paddingTop: 14, borderTop: '1px solid var(--line)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <small style={{ color: 'var(--muted)', fontSize: 10 }}>
+                  {new Date(viewing.created_at).toLocaleString('en-NG', { dateStyle: 'long', timeStyle: 'short' })}
+                </small>
+                <button
+                  className="primary-button small"
+                  onClick={() => { openEdit(viewing); setViewing(null) }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 5 }}
+                >
+                  <Pencil style={{ width: 12 }} /> Edit
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Plain note dialog */}
       <AnimatePresence>
