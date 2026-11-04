@@ -1,13 +1,27 @@
 'use client'
 
 import type { Dispatch, SetStateAction } from 'react'
-import { motion } from 'framer-motion'
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Calendar, CreditCard, Loader2, Pencil, Plus, Save, Sparkles, Trash2, WalletCards,
+  Calendar, CreditCard, Loader2, Pencil, Plus, Save, Sparkles, Trash2, WalletCards, FileText, X, StickyNote,
 } from 'lucide-react'
 import { calcStats, fmt, type Note, type SavingsGoal, type Transaction } from '@/lib/supabase/db'
 import type { GoalDraft, NoteDraft } from '@/components/dashboard/types'
 import { GlassIcon, SectionTitle, toneColors } from './ui'
+
+type PlainNote = { id: string; title: string; body: string; createdAt: string }
+
+function usePlainNotes() {
+  const [items, setItems] = useState<PlainNote[]>(() => {
+    try { return JSON.parse(localStorage.getItem('plain-notes') || '[]') } catch { return [] }
+  })
+  const save = (next: PlainNote[]) => { setItems(next); localStorage.setItem('plain-notes', JSON.stringify(next)) }
+  const add = (title: string, body: string) => save([{ id: Date.now().toString(), title, body, createdAt: new Date().toISOString() }, ...items])
+  const edit = (id: string, title: string, body: string) => save(items.map(n => n.id === id ? { ...n, title, body } : n))
+  const remove = (id: string) => save(items.filter(n => n.id !== id))
+  return { items, add, edit, remove }
+}
 
 export function NotesView({ notes, onAdd, onEdit, onDelete }: {
   notes: Note[]
@@ -15,37 +29,130 @@ export function NotesView({ notes, onAdd, onEdit, onDelete }: {
   onEdit: (note: Note) => void
   onDelete: (id: string) => void
 }) {
+  const plain = usePlainNotes()
+  const [tab, setTab] = useState<'financial' | 'plain'>('financial')
+  const [showDialog, setShowDialog] = useState(false)
+  const [editing, setEditing] = useState<PlainNote | null>(null)
+  const [draftTitle, setDraftTitle] = useState('')
+  const [draftBody, setDraftBody] = useState('')
+
+  const openAdd = () => { setEditing(null); setDraftTitle(''); setDraftBody(''); setShowDialog(true) }
+  const openEdit = (n: PlainNote) => { setEditing(n); setDraftTitle(n.title); setDraftBody(n.body); setShowDialog(true) }
+  const handleSave = () => {
+    if (!draftTitle.trim()) return
+    editing ? plain.edit(editing.id, draftTitle, draftBody) : plain.add(draftTitle, draftBody)
+    setShowDialog(false)
+  }
+
   return (
     <section className="notes-page">
-      <SectionTitle eyebrow="PLANNED SPENDING" title="Your notes" action={<button className="primary-button small" onClick={onAdd}><Plus /> Add note</button>} />
-      <p className="notes-intro">Keep the things you want to buy and bills you need to pay in one calm place.</p>
-      <div className="notes-list">
-        {notes.map((note) => (
-          <motion.article layout key={note.id} className="glass-panel note-card">
-            <div className="note-card-top">
-              <GlassIcon tone={note.category === 'Pay' ? 'pink' : 'teal'}><Calendar /></GlassIcon>
-              <span className={`note-tag ${note.category.toLowerCase()}`}>{note.category}</span>
-              <div className="note-actions">
-                <button onClick={() => onEdit(note)}><Pencil /></button>
-                <button onClick={() => onDelete(note.id)}><Trash2 /></button>
-              </div>
-            </div>
-            <h3>{note.title}</h3>
-            <strong>{fmt(note.amount)}</strong>
-            <div className="note-meta">
-              <span><Calendar /> Due {note.due_date}</span>
-              <small>Edited {new Date(note.updated_at).toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' })}</small>
-            </div>
-          </motion.article>
-        ))}
-        {notes.length === 0 && (
-          <div className="empty-notes glass-panel">
-            <WalletCards />
-            <p>No notes yet</p>
-            <button className="text-button" onClick={onAdd}>Add your first note</button>
-          </div>
-        )}
+      <SectionTitle
+        eyebrow="NOTES"
+        title="Your notes"
+        action={
+          tab === 'financial'
+            ? <button className="primary-button small" onClick={onAdd}><Plus /> Add note</button>
+            : <button className="primary-button small" onClick={openAdd}><Plus /> Add note</button>
+        }
+      />
+
+      {/* Tab switcher */}
+      <div className="notes-tabs">
+        <button className={tab === 'financial' ? 'notes-tab active' : 'notes-tab'} onClick={() => setTab('financial')}>
+          <WalletCards style={{ width: 13 }} /> Financial
+        </button>
+        <button className={tab === 'plain' ? 'notes-tab active' : 'notes-tab'} onClick={() => setTab('plain')}>
+          <StickyNote style={{ width: 13 }} /> Plain Notes
+        </button>
       </div>
+
+      {tab === 'financial' && (
+        <div className="notes-list">
+          {notes.map((note) => (
+            <motion.article layout key={note.id} className="glass-panel note-card">
+              <div className="note-card-top">
+                <GlassIcon tone={note.category === 'Pay' ? 'pink' : 'teal'}><Calendar /></GlassIcon>
+                <span className={`note-tag ${note.category.toLowerCase()}`}>{note.category}</span>
+                <div className="note-actions">
+                  <button onClick={() => onEdit(note)}><Pencil /></button>
+                  <button onClick={() => onDelete(note.id)}><Trash2 /></button>
+                </div>
+              </div>
+              <h3>{note.title}</h3>
+              <strong>{fmt(note.amount)}</strong>
+              <div className="note-meta">
+                <span><Calendar /> Due {note.due_date}</span>
+                <small>Edited {new Date(note.updated_at).toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' })}</small>
+              </div>
+            </motion.article>
+          ))}
+          {notes.length === 0 && (
+            <div className="empty-notes glass-panel">
+              <WalletCards />
+              <p>No financial notes yet</p>
+              <button className="text-button" onClick={onAdd}>Add your first note</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {tab === 'plain' && (
+        <div className="notes-list">
+          <AnimatePresence>
+            {plain.items.map((n) => (
+              <motion.article layout key={n.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} className="glass-panel note-card plain-note-card">
+                <div className="note-card-top">
+                  <GlassIcon tone="violet"><FileText /></GlassIcon>
+                  <span className="note-tag" style={{ background: '#e7e4ff', color: '#7168db' }}>Note</span>
+                  <div className="note-actions">
+                    <button onClick={() => openEdit(n)}><Pencil /></button>
+                    <button onClick={() => plain.remove(n.id)}><Trash2 /></button>
+                  </div>
+                </div>
+                <h3>{n.title}</h3>
+                {n.body && <p className="plain-note-body">{n.body}</p>}
+                <div className="note-meta">
+                  <small>{new Date(n.createdAt).toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' })}</small>
+                </div>
+              </motion.article>
+            ))}
+          </AnimatePresence>
+          {plain.items.length === 0 && (
+            <div className="empty-notes glass-panel">
+              <StickyNote style={{ width: 25, color: '#7168db' }} />
+              <p>No plain notes yet</p>
+              <button className="text-button" onClick={openAdd}>Write your first note</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Plain note dialog */}
+      <AnimatePresence>
+        {showDialog && (
+          <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowDialog(false)}>
+            <motion.div className="note-dialog glass-panel" initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }} onClick={(e) => e.stopPropagation()}>
+              <button className="close-button" onClick={() => setShowDialog(false)}><X /></button>
+              <h2>{editing ? 'Edit Note' : 'New Note'}</h2>
+              <label>Title
+                <input value={draftTitle} onChange={(e) => setDraftTitle(e.target.value)} placeholder="Note title" autoFocus />
+              </label>
+              <label style={{ marginTop: 12 }}>Content
+                <textarea
+                  value={draftBody}
+                  onChange={(e) => setDraftBody(e.target.value)}
+                  placeholder="Write anything..."
+                  rows={5}
+                  style={{ width: '100%', border: '1px solid var(--line)', borderRadius: 12, padding: 11, background: 'var(--surface)', color: 'var(--ink)', outline: 0, font: 'inherit', fontSize: 12, resize: 'vertical' }}
+                />
+              </label>
+              <button className="primary-button" onClick={handleSave} disabled={!draftTitle.trim()} style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Save style={{ width: 14 }} />{editing ? 'Update Note' : 'Save Note'}
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </section>
   )
 }
