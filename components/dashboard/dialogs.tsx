@@ -28,7 +28,10 @@ export function NoteDialog({ open, draft, setDraft, onSave, onClose, isEditing }
         <p className="eyebrow">{isEditing ? 'EDIT NOTE' : 'NEW NOTE'}</p>
         <h2>{isEditing ? 'Update your note' : 'What do you need to remember?'}</h2>
         <label>Title<input required value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="e.g. Flight tickets" /></label>
-        <label>Amount (NGN)<input required value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} placeholder="85000" inputMode="decimal" /></label>
+        <label>Min Amount (NGN)<input required value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} placeholder="85000" inputMode="decimal" /></label>
+        <label style={{ color: 'var(--muted)', fontSize: 11 }}>Max Amount — optional, if unsure of exact price
+          <input value={draft.amount_max} onChange={(e) => setDraft({ ...draft, amount_max: e.target.value })} placeholder="e.g. 100000" inputMode="decimal" />
+        </label>
         <label>Due Date<input required type="date" value={draft.due_date} onChange={(e) => setDraft({ ...draft, due_date: e.target.value })} /></label>
         <label>Type
           <select value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })}>
@@ -66,7 +69,12 @@ export function AccountDialog({ open, draft, setDraft, onSave, onClose, isEditin
         <label>Account name<input required value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="e.g. OPay" /></label>
         <label>Purpose<input value={draft.purpose} onChange={(e) => setDraft({ ...draft, purpose: e.target.value })} placeholder="e.g. Airtime & Bills" /></label>
         <label>Balance (NGN)<input required value={draft.balance} onChange={(e) => setDraft({ ...draft, balance: e.target.value })} placeholder="0" inputMode="decimal" /></label>
+        <label>Annual Interest Rate (%)<input value={draft.annual_interest} onChange={(e) => setDraft({ ...draft, annual_interest: e.target.value })} placeholder="e.g. 12.5" inputMode="decimal" /></label>
         <label>Symbol<input value={draft.symbol} onChange={(e) => setDraft({ ...draft, symbol: e.target.value })} placeholder="₦" maxLength={2} /></label>
+        <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+          <input type="checkbox" checked={draft.is_vault} onChange={(e) => setDraft({ ...draft, is_vault: e.target.checked })} style={{ width: 16, height: 16 }} />
+          <span>Mark as Vault account <small style={{ color: 'var(--muted)', fontSize: 10 }}>(most precious savings)</small></span>
+        </label>
         <label>Color
           <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
             {(Object.keys(TONE_COLORS) as string[]).map((t) => (

@@ -15,6 +15,9 @@ export type Account = {
   balance: number
   tone: string
   symbol: string
+  annual_interest: number
+  is_vault: boolean
+  vault_hidden: boolean
   created_at: string
 }
 
@@ -34,10 +37,20 @@ export type Note = {
   user_id: string
   title: string
   amount: number
+  amount_max: number | null
   due_date: string
   category: string
   updated_at: string
   created_at: string
+}
+
+export type PlainNote = {
+  id: string
+  user_id: string
+  title: string
+  body: string
+  created_at: string
+  updated_at: string
 }
 
 export type SavingsGoal = {
@@ -91,6 +104,12 @@ export async function getAccounts(userId: string): Promise<Account[]> {
 export async function upsertAccount(account: Omit<Account, 'created_at'>) {
   const supabase = createClient()
   const { error } = await supabase.from('accounts').upsert(account)
+  throwOnSupabaseError(error)
+}
+
+export async function updateAccountVaultVisibility(id: string, vault_hidden: boolean) {
+  const supabase = createClient()
+  const { error } = await supabase.from('accounts').update({ vault_hidden }).eq('id', id)
   throwOnSupabaseError(error)
 }
 
@@ -263,6 +282,30 @@ export async function getNotes(userId: string): Promise<Note[]> {
 export async function upsertNote(note: Omit<Note, 'created_at'>) {
   const supabase = createClient()
   const { error } = await supabase.from('notes').upsert({ ...note, updated_at: new Date().toISOString() })
+  throwOnSupabaseError(error)
+}
+
+// ─── Plain Notes ──────────────────────────────────────────────────────────────
+export async function getPlainNotes(userId: string): Promise<PlainNote[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('plain_notes')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false })
+  throwOnSupabaseError(error)
+  return data ?? []
+}
+
+export async function upsertPlainNote(note: Omit<PlainNote, 'created_at'>) {
+  const supabase = createClient()
+  const { error } = await supabase.from('plain_notes').upsert({ ...note, updated_at: new Date().toISOString() })
+  throwOnSupabaseError(error)
+}
+
+export async function deletePlainNote(id: string) {
+  const supabase = createClient()
+  const { error } = await supabase.from('plain_notes').delete().eq('id', id)
   throwOnSupabaseError(error)
 }
 

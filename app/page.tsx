@@ -11,15 +11,17 @@ import {
 import { GlassIcon, SectionTitle, toneColors, greeting } from '@/components/dashboard/ui'
 import { useExpenseData } from '@/components/dashboard/useExpenseData'
 import { InsightsView, NotesView, SettingsView } from '@/components/dashboard/views'
+import { VaultView } from '@/components/vault/VaultView'
 import {
   ArrowDownLeft, ArrowUpRight, Bell, ChevronLeft, ChevronRight, ChevronDown,
   CircleHelp, CreditCard, Eye, EyeOff, Home, LogOut, Moon, MoreHorizontal, Pencil, Plus,
-  Settings2, Sparkles, Sun, Target, Trash2, TrendingUp, WalletCards, X, Loader2, HandCoins, CalendarClock,
+  Settings2, Sparkles, Sun, Target, Trash2, TrendingUp, WalletCards, X, Loader2, HandCoins, CalendarClock, ShieldCheck,
 } from 'lucide-react'
 
 const navItems = [
   { label: 'Home', icon: Home },
   { label: 'Notes', icon: WalletCards },
+  { label: 'Vault', icon: ShieldCheck },
   { label: 'Insights', icon: Sparkles },
   { label: 'Settings', icon: Settings2 },
 ]
@@ -47,8 +49,15 @@ export default function Page() {
     futureExpenses, totalFutureExpenses,
     showFutureExpenseDialog, futureExpenseDraft, setFutureExpenseDraft, editingFutureExpense,
     openFutureExpense, closeFutureExpense, saveFutureExpense, removeFutureExpense,
+    plainNotes, savePlainNote, removePlainNote,
+    vaultAccounts, vaultTotal, hiddenVaultTotal, toggleVaultHidden,
   } = useExpenseData()
   const hasSpendableExclusions = excludedAccounts.length > 0 || excludedLenders.length > 0
+
+  const openVaultAccount = () => {
+    openAccount()
+    // pre-tick vault after dialog opens — handled via accountDraft default in openAccount
+  }
 
   if (authLoading || !user) return null
 
@@ -74,6 +83,7 @@ export default function Page() {
                     <Bell />
                     {unreadCount > 0 && <i />}
                   </button>
+                  <button aria-label="Settings" onClick={() => setActive('Settings')}><Settings2 /></button>
                   <button aria-label="Sign out" onClick={signOut}><LogOut /></button>
                 </div>
               </div>
@@ -251,7 +261,7 @@ export default function Page() {
                         <motion.article whileHover={{ y: -5 }} className={`account-card ${i === 0 ? 'active-account' : ''} ${excludedAccounts.includes(acc.id) ? 'account-excluded' : ''}`} key={acc.id}>
                           <div className={`account-icon account-${acc.tone}`}>{acc.symbol}</div>
                           <p>{acc.name}</p>
-                          <small>{acc.purpose}</small>
+                          <small>{acc.purpose}{acc.annual_interest > 0 ? ` · ${acc.annual_interest}% p.a.` : ''}</small>
                           <strong>{hideAccountAmounts || excludedAccounts.includes(acc.id) ? '••••' : fmt(acc.balance)}</strong>
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 11 }}>
                             <div className="account-dots"><i /><i /><i /></div>
@@ -420,9 +430,30 @@ export default function Page() {
                   )}
                 </>}
 
+                {/* ══ VAULT ══ */}
+                {active === 'Vault' && (
+                  <VaultView
+                    accounts={accounts}
+                    hideAmounts={hideAccountAmounts}
+                    onToggleHideAmounts={() => setHideAccountAmounts(!hideAccountAmounts)}
+                    onToggleVaultHidden={toggleVaultHidden}
+                    onAdd={openAccount}
+                    onEdit={openAccount}
+                    onDelete={removeAccount}
+                  />
+                )}
+
                 {/* ══ NOTES ══ */}
                 {active === 'Notes' && (
-                  <NotesView notes={notes} onAdd={() => openNote()} onEdit={openNote} onDelete={removeNote} />
+                  <NotesView
+                    notes={notes}
+                    onAdd={() => openNote()}
+                    onEdit={openNote}
+                    onDelete={removeNote}
+                    plainNotes={plainNotes}
+                    onSavePlainNote={savePlainNote}
+                    onDeletePlainNote={removePlainNote}
+                  />
                 )}
 
                 {/* ══ INSIGHTS ══ */}
@@ -461,11 +492,11 @@ export default function Page() {
           <button className="add-nav-btn" onClick={() => setShowAdd(true)}>
             <span className="add-button"><Plus /></span><small>Add</small>
           </button>
+          <button className={active === 'Vault' ? 'nav-active' : ''} onClick={() => setActive('Vault')}>
+            <span><ShieldCheck /></span><small>Vault</small>
+          </button>
           <button className={active === 'Insights' ? 'nav-active' : ''} onClick={() => setActive('Insights')}>
             <span><Sparkles /></span><small>Insights</small>
-          </button>
-          <button className={active === 'Settings' ? 'nav-active' : ''} onClick={() => setActive('Settings')}>
-            <span><Settings2 /></span><small>Settings</small>
           </button>
         </nav>
 
@@ -501,6 +532,10 @@ export default function Page() {
                   <button onClick={() => { setShowAdd(false); openFutureExpense() }}>
                     <GlassIcon tone="pink"><CalendarClock /></GlassIcon>
                     <span>Future Exp.<small>Plan ahead</small></span>
+                  </button>
+                  <button onClick={() => { setShowAdd(false); setActive('Vault'); openAccount() }}>
+                    <GlassIcon tone="violet"><ShieldCheck /></GlassIcon>
+                    <span>Vault<small>Precious savings</small></span>
                   </button>
                 </div>
               </motion.div>

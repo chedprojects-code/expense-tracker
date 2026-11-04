@@ -3,16 +3,16 @@ import type { NoteDraft, AccountDraft, TxDraft, GoalDraft, LenderDraft, FutureEx
 
 export function createNoteDraft(note?: Note): NoteDraft {
   if (note) {
-    return { title: note.title, amount: String(note.amount), due_date: note.due_date, category: note.category }
+    return { title: note.title, amount: String(note.amount), amount_max: note.amount_max != null ? String(note.amount_max) : '', due_date: note.due_date, category: note.category }
   }
-  return { title: '', amount: '', due_date: '', category: 'Want' }
+  return { title: '', amount: '', amount_max: '', due_date: '', category: 'Want' }
 }
 
 export function createAccountDraft(account?: Account): AccountDraft {
   if (account) {
-    return { name: account.name, purpose: account.purpose, balance: String(account.balance), tone: account.tone, symbol: account.symbol }
+    return { name: account.name, purpose: account.purpose, balance: String(account.balance), tone: account.tone, symbol: account.symbol, annual_interest: String(account.annual_interest ?? 0), is_vault: account.is_vault ?? false }
   }
-  return { name: '', purpose: '', balance: '', tone: 'violet', symbol: '₦' }
+  return { name: '', purpose: '', balance: '', tone: 'violet', symbol: '₦', annual_interest: '0', is_vault: false }
 }
 
 export function createTxDraft(type: 'income' | 'expense' = 'expense'): TxDraft {

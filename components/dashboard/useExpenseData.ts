@@ -5,12 +5,13 @@ import {
   getProfile, getAccounts, getTransactions, getNotes, getSavingsGoal,
   getNotifications, markNotificationsRead,
   upsertNote, deleteNote,
-  upsertAccount, deleteAccount,
+  upsertAccount, deleteAccount, updateAccountVaultVisibility,
   upsertSavingsGoal, insertTransaction, updateTransaction, deleteTransaction, updateProfile,
   getLenders, upsertLender, deleteLender,
   getFutureExpenses, upsertFutureExpense, deleteFutureExpense,
+  getPlainNotes, upsertPlainNote, deletePlainNote,
   calcStats, buildChartPaths,
-  type Account, type Note, type SavingsGoal, type Transaction, type Notification, type Lender, type FutureExpense,
+  type Account, type Note, type SavingsGoal, type Transaction, type Notification, type Lender, type FutureExpense, type PlainNote,
 } from '@/lib/supabase/db'
 import {
   createAccountDraft, createGoalDraft, createNoteDraft, createProfileDraft, createTxDraft,
@@ -91,6 +92,9 @@ export function useExpenseData() {
   const [editingFutureExpense, setEditingFutureExpense] = useState<FutureExpense | null>(null)
   const [futureExpenseDraft, setFutureExpenseDraft] = useState<FutureExpenseDraft>(() => createFutureExpenseDraft())
 
+  // ── Plain notes state ──────────────────────────────────────────────────────────────
+  const [plainNotes, setPlainNotes] = useState<PlainNote[]>([])
+
   const [goalDraft, setGoalDraft] = useState<GoalDraft>(() => createGoalDraft())
   const [profileDraft, setProfileDraft] = useState(() => createProfileDraft())
   const [savingProfile, setSavingProfile] = useState(false)
@@ -110,7 +114,7 @@ export function useExpenseData() {
     if (!user) return
     setDataLoading(true)
     try {
-      const [p, a, t, n, g, notifs, lnds, fe] = await Promise.all([
+      const [p, a, t, n, g, notifs, lnds, fe, pn] = await Promise.all([
         getProfile(user.id),
         getAccounts(user.id),
         getTransactions(user.id),
@@ -119,6 +123,7 @@ export function useExpenseData() {
         getNotifications(user.id),
         getLenders(user.id),
         getFutureExpenses(user.id),
+        getPlainNotes(user.id),
       ])
       setProfile(p)
       setAccounts(a)
@@ -128,6 +133,7 @@ export function useExpenseData() {
       setNotifications(notifs)
       setLenders(lnds)
       setFutureExpenses(fe)
+      setPlainNotes(pn)
       if (p) setProfileDraft(createProfileDraft(p))
       if (g) setGoalDraft(createGoalDraft(g))
     } catch (err) {
@@ -150,6 +156,7 @@ export function useExpenseData() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'notes', filter: `user_id=eq.${user.id}` }, () => loadData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'lenders', filter: `user_id=eq.${user.id}` }, () => loadData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'future_expenses', filter: `user_id=eq.${user.id}` }, () => loadData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'plain_notes', filter: `user_id=eq.${user.id}` }, () => loadData())
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [user, loadData])
@@ -159,9 +166,12 @@ export function useExpenseData() {
   const chart = buildChartPaths(transactions, viewMonth, viewYear)
   const totalLent = lenders.reduce((sum, l) => sum + l.amount, 0)
   const totalFutureExpenses = futureExpenses.reduce((sum, f) => sum + f.amount, 0)
-  const netWorth = accounts.reduce((sum, a) => sum + a.balance, 0) + totalLent
+  const vaultAccounts = accounts.filter((a) => a.is_vault)
+  const vaultTotal = vaultAccounts.reduce((sum, a) => sum + a.balance, 0)
+  const hiddenVaultTotal = vaultAccounts.filter((a) => a.vault_hidden).reduce((sum, a) => sum + a.balance, 0)
+  const netWorth = accounts.reduce((sum, a) => sum + a.balance, 0) + totalLent - hiddenVaultTotal
   const spendableLent = lenders.filter((lender) => !excludedLenders.includes(lender.id)).reduce((sum, lender) => sum + lender.amount, 0)
-  const spendableWorth = accounts.filter((a) => !excludedAccounts.includes(a.id)).reduce((sum, a) => sum + a.balance, 0) + spendableLent
+  const spendableWorth = accounts.filter((a) => !excludedAccounts.includes(a.id) && !(a.is_vault && a.vault_hidden)).reduce((sum, a) => sum + a.balance, 0) + spendableLent
   const netAfterFuture = netWorth - totalFutureExpenses
   const spendableAfterFuture = spendableWorth - totalFutureExpenses
   const goalPercent = goal ? Math.min(100, Math.round((goal.current_amount / goal.target_amount) * 100)) : 0
@@ -202,6 +212,7 @@ export function useExpenseData() {
         user_id: user.id,
         title: noteDraft.title,
         amount: parseFloat(noteDraft.amount),
+        amount_max: noteDraft.amount_max.trim() ? parseFloat(noteDraft.amount_max) : null,
         due_date: noteDraft.due_date,
         category: noteDraft.category,
         updated_at: new Date().toISOString(),
@@ -245,6 +256,9 @@ export function useExpenseData() {
         balance: parseFloat(accountDraft.balance),
         tone: accountDraft.tone,
         symbol: accountDraft.symbol,
+        annual_interest: parseFloat(accountDraft.annual_interest) || 0,
+        is_vault: accountDraft.is_vault,
+        vault_hidden: editingAccount?.vault_hidden ?? false,
       })
       closeAccount()
       await loadData()
@@ -418,6 +432,36 @@ export function useExpenseData() {
     }
   }, [])
 
+  // ── Plain Notes CRUD ──────────────────────────────────────────────────────────────
+  const savePlainNote = useCallback(async (id: string | null, title: string, body: string) => {
+    if (!user) return
+    try {
+      await upsertPlainNote({ id: id ?? generateId(), user_id: user.id, title, body, updated_at: new Date().toISOString() })
+      await loadData()
+    } catch (err) {
+      console.error('[savePlainNote]', err)
+    }
+  }, [user, loadData])
+
+  const removePlainNote = useCallback(async (id: string) => {
+    try {
+      await deletePlainNote(id)
+      setPlainNotes((prev) => prev.filter((x) => x.id !== id))
+    } catch (err) {
+      console.error('[removePlainNote]', err)
+    }
+  }, [])
+
+  // ── Vault visibility toggle ──────────────────────────────────────────────────────────────
+  const toggleVaultHidden = useCallback(async (id: string, currentHidden: boolean) => {
+    try {
+      await updateAccountVaultVisibility(id, !currentHidden)
+      setAccounts((prev) => prev.map((a) => a.id === id ? { ...a, vault_hidden: !currentHidden } : a))
+    } catch (err) {
+      console.error('[toggleVaultHidden]', err)
+    }
+  }, [])
+
   // ── Notifications ───────────────────────────────────────────────────────────
   const handleMarkRead = useCallback(async () => {
     if (!user) return
@@ -479,6 +523,10 @@ export function useExpenseData() {
     futureExpenses, totalFutureExpenses,
     showFutureExpenseDialog, futureExpenseDraft, setFutureExpenseDraft, editingFutureExpense,
     openFutureExpense, closeFutureExpense, saveFutureExpense, removeFutureExpense,
+    // plain notes
+    plainNotes, savePlainNote, removePlainNote,
+    // vault
+    vaultAccounts, vaultTotal, hiddenVaultTotal, toggleVaultHidden,
     // reload
     loadData,
   }

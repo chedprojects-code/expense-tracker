@@ -118,11 +118,42 @@ alter table lenders enable row level security;
 drop policy if exists "Users can manage their own lenders" on lenders;
 create policy "Users can manage their own lenders" on lenders for all using (auth.uid() = user_id);
 
--- Enable Realtime for live data refresh (run once)
-alter publication supabase_realtime add table transactions;
-alter publication supabase_realtime add table accounts;
-alter publication supabase_realtime add table notes;
-alter publication supabase_realtime add table lenders;
+-- Enable Realtime for live data refresh (run once — skip if already done)
+do $$ begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'transactions'
+  ) then
+    alter publication supabase_realtime add table transactions;
+  end if;
+end $$;
+
+do $$ begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'accounts'
+  ) then
+    alter publication supabase_realtime add table accounts;
+  end if;
+end $$;
+
+do $$ begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'notes'
+  ) then
+    alter publication supabase_realtime add table notes;
+  end if;
+end $$;
+
+do $$ begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'lenders'
+  ) then
+    alter publication supabase_realtime add table lenders;
+  end if;
+end $$;
 
 -- Future Expenses (planned spending not yet made)
 create table if not exists future_expenses (
@@ -139,6 +170,46 @@ alter table future_expenses enable row level security;
 drop policy if exists "Users can manage their own future expenses" on future_expenses;
 create policy "Users can manage their own future expenses" on future_expenses for all using (auth.uid() = user_id);
 
-alter publication supabase_realtime add table future_expenses;
+do $$ begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'future_expenses'
+  ) then
+    alter publication supabase_realtime add table future_expenses;
+  end if;
+end $$;
+
+-- Annual interest on accounts
+alter table accounts add column if not exists annual_interest numeric not null default 0;
+
+-- Vault flag and hidden toggle on accounts
+alter table accounts add column if not exists is_vault boolean not null default false;
+alter table accounts add column if not exists vault_hidden boolean not null default false;
+
+-- Plain notes (synced to Supabase)
+create table if not exists plain_notes (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  title text not null,
+  body text not null default '',
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table plain_notes enable row level security;
+drop policy if exists "Users can manage their own plain notes" on plain_notes;
+create policy "Users can manage their own plain notes" on plain_notes for all using (auth.uid() = user_id);
+
+do $$ begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'plain_notes'
+  ) then
+    alter publication supabase_realtime add table plain_notes;
+  end if;
+end $$;
+
+-- Price range on notes (amount_max = null means exact price)
+alter table notes add column if not exists amount_max numeric;
 
 notify pgrst, 'reload schema';

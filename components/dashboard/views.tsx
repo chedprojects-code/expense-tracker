@@ -6,43 +6,34 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Calendar, CreditCard, Loader2, Pencil, Plus, Save, Sparkles, Trash2, WalletCards, FileText, X, StickyNote,
 } from 'lucide-react'
-import { calcStats, fmt, type Note, type SavingsGoal, type Transaction } from '@/lib/supabase/db'
+import { calcStats, fmt, type Note, type PlainNote, type SavingsGoal, type Transaction } from '@/lib/supabase/db'
 import type { GoalDraft, NoteDraft } from '@/components/dashboard/types'
 import { GlassIcon, SectionTitle, toneColors } from './ui'
 
-type PlainNote = { id: string; title: string; body: string; createdAt: string }
-
-function usePlainNotes() {
-  const [items, setItems] = useState<PlainNote[]>(() => {
-    try { return JSON.parse(localStorage.getItem('plain-notes') || '[]') } catch { return [] }
-  })
-  const save = (next: PlainNote[]) => { setItems(next); localStorage.setItem('plain-notes', JSON.stringify(next)) }
-  const add = (title: string, body: string) => save([{ id: Date.now().toString(), title, body, createdAt: new Date().toISOString() }, ...items])
-  const edit = (id: string, title: string, body: string) => save(items.map(n => n.id === id ? { ...n, title, body } : n))
-  const remove = (id: string) => save(items.filter(n => n.id !== id))
-  return { items, add, edit, remove }
-}
-
-export function NotesView({ notes, onAdd, onEdit, onDelete }: {
+export function NotesView({ notes, onAdd, onEdit, onDelete, plainNotes, onSavePlainNote, onDeletePlainNote }: {
   notes: Note[]
   onAdd: () => void
   onEdit: (note: Note) => void
   onDelete: (id: string) => void
+  plainNotes: import('@/lib/supabase/db').PlainNote[]
+  onSavePlainNote: (id: string | null, title: string, body: string) => Promise<void>
+  onDeletePlainNote: (id: string) => Promise<void>
 }) {
-  const plain = usePlainNotes()
   const [tab, setTab] = useState<'financial' | 'plain'>('financial')
   const [showDialog, setShowDialog] = useState(false)
-  const [editing, setEditing] = useState<PlainNote | null>(null)
+  const [editing, setEditing] = useState<import('@/lib/supabase/db').PlainNote | null>(null)
   const [draftTitle, setDraftTitle] = useState('')
   const [draftBody, setDraftBody] = useState('')
 
   const openAdd = () => { setEditing(null); setDraftTitle(''); setDraftBody(''); setShowDialog(true) }
-  const openEdit = (n: PlainNote) => { setEditing(n); setDraftTitle(n.title); setDraftBody(n.body); setShowDialog(true) }
-  const handleSave = () => {
+  const openEdit = (n: import('@/lib/supabase/db').PlainNote) => { setEditing(n); setDraftTitle(n.title); setDraftBody(n.body); setShowDialog(true) }
+  const handleSave = async () => {
     if (!draftTitle.trim()) return
-    editing ? plain.edit(editing.id, draftTitle, draftBody) : plain.add(draftTitle, draftBody)
+    await onSavePlainNote(editing?.id ?? null, draftTitle, draftBody)
     setShowDialog(false)
   }
+
+  const notesTotal = notes.reduce((sum, n) => sum + n.amount, 0)
 
   return (
     <section className="notes-page">
@@ -68,6 +59,12 @@ export function NotesView({ notes, onAdd, onEdit, onDelete }: {
 
       {tab === 'financial' && (
         <div className="notes-list">
+          {notes.length > 0 && (
+            <div className="glass-panel" style={{ padding: '10px 14px', borderRadius: 16, marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span className="eyebrow">TOTAL</span>
+              <strong style={{ fontSize: 14, color: '#18ad99' }}>{fmt(notesTotal)}</strong>
+            </div>
+          )}
           {notes.map((note) => (
             <motion.article layout key={note.id} className="glass-panel note-card">
               <div className="note-card-top">
@@ -79,7 +76,11 @@ export function NotesView({ notes, onAdd, onEdit, onDelete }: {
                 </div>
               </div>
               <h3>{note.title}</h3>
-              <strong>{fmt(note.amount)}</strong>
+              <strong>
+                {note.amount_max != null
+                  ? `${fmt(note.amount)} – ${fmt(note.amount_max)}`
+                  : fmt(note.amount)}
+              </strong>
               <div className="note-meta">
                 <span><Calendar /> Due {note.due_date}</span>
                 <small>Edited {new Date(note.updated_at).toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' })}</small>
@@ -99,25 +100,25 @@ export function NotesView({ notes, onAdd, onEdit, onDelete }: {
       {tab === 'plain' && (
         <div className="notes-list">
           <AnimatePresence>
-            {plain.items.map((n) => (
+            {plainNotes.map((n) => (
               <motion.article layout key={n.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} className="glass-panel note-card plain-note-card">
                 <div className="note-card-top">
                   <GlassIcon tone="violet"><FileText /></GlassIcon>
                   <span className="note-tag" style={{ background: '#e7e4ff', color: '#7168db' }}>Note</span>
                   <div className="note-actions">
                     <button onClick={() => openEdit(n)}><Pencil /></button>
-                    <button onClick={() => plain.remove(n.id)}><Trash2 /></button>
+                    <button onClick={() => onDeletePlainNote(n.id)}><Trash2 /></button>
                   </div>
                 </div>
                 <h3>{n.title}</h3>
                 {n.body && <p className="plain-note-body">{n.body}</p>}
                 <div className="note-meta">
-                  <small>{new Date(n.createdAt).toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' })}</small>
+                  <small>{new Date(n.created_at).toLocaleString('en-NG', { dateStyle: 'medium', timeStyle: 'short' })}</small>
                 </div>
               </motion.article>
             ))}
           </AnimatePresence>
-          {plain.items.length === 0 && (
+          {plainNotes.length === 0 && (
             <div className="empty-notes glass-panel">
               <StickyNote style={{ width: 25, color: '#7168db' }} />
               <p>No plain notes yet</p>
