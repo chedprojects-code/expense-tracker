@@ -181,6 +181,7 @@ end $$;
 
 -- Annual interest on accounts
 alter table accounts add column if not exists annual_interest numeric not null default 0;
+alter table accounts add column if not exists last_interest_applied_at timestamptz;
 
 -- Vault flag and hidden toggle on accounts
 alter table accounts add column if not exists is_vault boolean not null default false;

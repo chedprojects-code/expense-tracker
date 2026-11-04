@@ -11,6 +11,7 @@ import {
   getFutureExpenses, upsertFutureExpense, deleteFutureExpense,
   getPlainNotes, upsertPlainNote, deletePlainNote,
   calcStats, buildChartPaths,
+  applyDailyInterest,
   type Account, type Note, type SavingsGoal, type Transaction, type Notification, type Lender, type FutureExpense, type PlainNote,
 } from '@/lib/supabase/db'
 import {
@@ -127,6 +128,11 @@ export function useExpenseData() {
       ])
       setProfile(p)
       setAccounts(a)
+      if (a.some((acc) => acc.annual_interest > 0)) {
+        await applyDailyInterest(a)
+        const refreshed = await getAccounts(user.id)
+        setAccounts(refreshed)
+      }
       setTransactions(t)
       setNotes(n)
       setGoal(g)
@@ -259,6 +265,7 @@ export function useExpenseData() {
         annual_interest: parseFloat(accountDraft.annual_interest) || 0,
         is_vault: accountDraft.is_vault,
         vault_hidden: editingAccount?.vault_hidden ?? false,
+        last_interest_applied_at: editingAccount?.last_interest_applied_at ?? null,
       })
       closeAccount()
       await loadData()

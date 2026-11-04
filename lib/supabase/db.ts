@@ -18,6 +18,7 @@ export type Account = {
   annual_interest: number
   is_vault: boolean
   vault_hidden: boolean
+  last_interest_applied_at: string | null
   created_at: string
 }
 
@@ -105,6 +106,25 @@ export async function upsertAccount(account: Omit<Account, 'created_at'>) {
   const supabase = createClient()
   const { error } = await supabase.from('accounts').upsert(account)
   throwOnSupabaseError(error)
+}
+
+export async function applyDailyInterest(accounts: Account[]): Promise<void> {
+  const supabase = createClient()
+  const now = new Date()
+  const updates = accounts
+    .filter((a) => a.annual_interest > 0)
+    .map((a) => {
+      const last = a.last_interest_applied_at ? new Date(a.last_interest_applied_at) : new Date(a.created_at)
+      const days = (now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24)
+      if (days < 1) return null
+      const interest = a.balance * (a.annual_interest / 100) * (Math.floor(days) / 365)
+      return { id: a.id, balance: a.balance + interest, last_interest_applied_at: now.toISOString() }
+    })
+    .filter(Boolean) as { id: string; balance: number; last_interest_applied_at: string }[]
+
+  await Promise.all(
+    updates.map((u) => supabase.from('accounts').update({ balance: u.balance, last_interest_applied_at: u.last_interest_applied_at }).eq('id', u.id))
+  )
 }
 
 export async function updateAccountVaultVisibility(id: string, vault_hidden: boolean) {
