@@ -24,6 +24,7 @@ export function BuyListContent({ items, onAdd, onToggle, onEdit, onDelete }: {
   const boughtCount = filtered.filter((item) => item.bought).length
   const total = filtered.reduce((sum, item) => sum + (item.price ?? 0), 0)
   const boughtTotal = filtered.filter((item) => item.bought).reduce((sum, item) => sum + (item.price ?? 0), 0)
+  const remainingTotal = total - boughtTotal
 
   const handleAdd = async () => {
     if (!title.trim()) return
@@ -79,8 +80,8 @@ export function BuyListContent({ items, onAdd, onToggle, onEdit, onDelete }: {
       {filtered.length > 0 && (
         <div className="buy-totals glass-panel">
           <div className="buy-totals-row">
-            <span className="eyebrow">TOTAL</span>
-            <strong style={{ color: '#7168db' }}>{total > 0 ? fmt(total) : '—'}</strong>
+            <span className="eyebrow">LEFT TO SPEND</span>
+            <strong style={{ color: '#7168db' }}>{total > 0 ? fmt(remainingTotal) : '—'}</strong>
           </div>
           <div className="buy-totals-row">
             <span className="eyebrow">BOUGHT</span>
