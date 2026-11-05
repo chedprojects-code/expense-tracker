@@ -400,6 +400,17 @@ button { border:0; font:inherit; color:inherit; cursor:pointer; }
   gap: 15px;
   margin-bottom: 16px;
 }
+.notes-module-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 2px 12px;
+}
+.notes-module-header h3 {
+  margin: 0;
+  font-size: 13px;
+}
 .notes-tab {
   display: flex;
   align-items: center;

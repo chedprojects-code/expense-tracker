@@ -64,11 +64,6 @@ export function NotesView({
       <SectionTitle
         eyebrow="NOTES"
         title="Your notes"
-        action={
-          tab === 'financial'
-            ? <button className="primary-button small" onClick={onAdd}><Plus /> Add note</button>
-            : <button className="primary-button small" onClick={openAdd}><Plus /> Add note</button>
-        }
       />
 
       <div className="notes-tabs">
@@ -84,7 +79,12 @@ export function NotesView({
       </div>
 
       {tab === 'financial' && (
-        <div className="notes-list">
+        <div>
+          <div className="notes-module-header">
+            <h3>Financial notes</h3>
+            <button className="primary-button small" onClick={onAdd}><Plus /> Add note</button>
+          </div>
+          <div className="notes-list">
           {notes.length > 0 && (
             <div className="glass-panel" style={{ padding: '10px 14px', borderRadius: 16, marginBottom: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span className="eyebrow">TOTAL</span>
@@ -117,14 +117,19 @@ export function NotesView({
             <div className="empty-notes glass-panel">
               <WalletCards />
               <p>No financial notes yet</p>
-              <button className="text-button" onClick={onAdd}>Add your first note</button>
             </div>
           )}
+          </div>
         </div>
       )}
 
       {tab === 'plain' && (
-        <div className="notes-list">
+        <div>
+          <div className="notes-module-header">
+            <h3>Plain notes</h3>
+            <button className="primary-button small" onClick={openAdd}><Plus /> Add note</button>
+          </div>
+          <div className="notes-list">
           <AnimatePresence>
             {plainNotes.map((note) => (
               <motion.article
@@ -164,9 +169,9 @@ export function NotesView({
             <div className="empty-notes glass-panel">
               <StickyNote style={{ width: 25, color: '#7168db' }} />
               <p>No plain notes yet</p>
-              <button className="text-button" onClick={openAdd}>Write your first note</button>
             </div>
           )}
+          </div>
         </div>
       )}
 
