@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Calendar, FileText, Eye, Pencil, Plus, Save, ShoppingCart, StickyNote,
@@ -23,6 +23,7 @@ export function NotesView({
   onToggleBuyItem,
   onEditBuyItem,
   onDeleteBuyItem,
+  initialTab,
 }: {
   notes: Note[]
   onAdd: () => void
@@ -36,8 +37,11 @@ export function NotesView({
   onToggleBuyItem: (id: string, bought: boolean) => Promise<void>
   onEditBuyItem: (id: string, title: string, price: number | null, category: 'need' | 'want') => Promise<void>
   onDeleteBuyItem: (id: string) => Promise<void>
+  initialTab?: 'financial' | 'plain' | 'buylist'
 }) {
-  const [tab, setTab] = useState<'financial' | 'plain' | 'buylist'>('financial')
+  const [tab, setTab] = useState<'financial' | 'plain' | 'buylist'>(initialTab ?? 'financial')
+
+  useEffect(() => { if (initialTab) setTab(initialTab) }, [initialTab])
   const [showDialog, setShowDialog] = useState(false)
   const [editing, setEditing] = useState<PlainNote | null>(null)
   const [draftTitle, setDraftTitle] = useState('')
@@ -88,7 +92,7 @@ export function NotesView({
             </div>
           )}
           {notes.map((note) => (
-            <motion.article layout key={note.id} className="glass-panel note-card">
+            <motion.article layout key={note.id} className="glass-panel note-card" id={`search-result-financialNote-${note.id}`}>
               <div className="note-card-top">
                 <GlassIcon tone={note.category === 'Pay' ? 'pink' : 'teal'}><Calendar /></GlassIcon>
                 <span className={`note-tag ${note.category.toLowerCase()}`}>{note.category}</span>
@@ -128,6 +132,7 @@ export function NotesView({
                 initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
                 className="glass-panel note-card plain-note-card"
                 style={{ cursor: 'pointer' }}
+                id={`search-result-plainNote-${note.id}`}
                 onClick={() => setViewing(note)}
               >
                 <div className="note-card-top">

@@ -2,12 +2,12 @@
 
 import type { Dispatch, SetStateAction } from 'react'
 import { motion } from 'framer-motion'
-import { CreditCard, Loader2, Save } from 'lucide-react'
+import { CreditCard, Loader2, LogOut, Save } from 'lucide-react'
 import { type SavingsGoal } from '@/lib/supabase/db'
 import type { GoalDraft } from '@/components/dashboard/types'
 import { GlassIcon, SectionTitle } from './ui'
 
-export function SettingsView({ profileDraft, setProfileDraft, onSaveProfile, savingProfile, goalDraft, setGoalDraft, onSaveGoal, goal, goalPercent }: {
+export function SettingsView({ profileDraft, setProfileDraft, onSaveProfile, savingProfile, goalDraft, setGoalDraft, onSaveGoal, goal, goalPercent, onSignOut }: {
   profileDraft: { name: string; initials: string }
   setProfileDraft: Dispatch<SetStateAction<{ name: string; initials: string }>>
   onSaveProfile: () => void
@@ -17,6 +17,7 @@ export function SettingsView({ profileDraft, setProfileDraft, onSaveProfile, sav
   onSaveGoal: () => void
   goal: SavingsGoal | null
   goalPercent: number
+  onSignOut: () => void
 }) {
   const inputStyle = { border: '1px solid var(--line)', borderRadius: 10, padding: '9px 11px', background: 'var(--surface)', color: 'var(--ink)', font: 'inherit', fontSize: 12, width: '100%' }
 
@@ -38,7 +39,7 @@ export function SettingsView({ profileDraft, setProfileDraft, onSaveProfile, sav
         </div>
       </div>
 
-      <div className="glass-panel balance-editor" style={{ marginBottom: 12 }}>
+      <div id={goal ? `search-result-goal-${goal.id}` : undefined} className="glass-panel balance-editor" style={{ marginBottom: 12 }}>
         <p className="eyebrow">SAVINGS GOAL</p>
         <h3 style={{ margin: '4px 0 12px' }}>{goal?.title || 'Set a goal'}</h3>
         {goal && (
@@ -64,6 +65,10 @@ export function SettingsView({ profileDraft, setProfileDraft, onSaveProfile, sav
           <p>Your accounts, notes, transactions and goals are saved to Supabase across all devices.</p>
         </div>
       </div>
+
+      <button className="settings-signout" onClick={onSignOut}>
+        <LogOut style={{ width: 15 }} /> Sign out
+      </button>
     </section>
   )
 }

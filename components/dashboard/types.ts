@@ -4,3 +4,21 @@ export type TxDraft = { type: 'income' | 'expense'; amount: string; category: st
 export type GoalDraft = { title: string; current: string; target: string }
 export type LenderDraft = { name: string; amount: string; note: string }
 export type FutureExpenseDraft = { title: string; amount: string; due_date: string; category: string }
+export type DashboardSearchType =
+  | 'account'
+  | 'transaction'
+  | 'futureExpense'
+  | 'lender'
+  | 'financialNote'
+  | 'plainNote'
+  | 'buyListItem'
+  | 'goal'
+export type DashboardSearchItem = {
+  id: string
+  type: DashboardSearchType
+  title: string
+  detail: string
+  searchText?: string
+  date?: string
+  section?: string
+}

@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { fmt } from '@/lib/supabase/db'
 import {
@@ -16,6 +17,7 @@ import { NotesView } from '@/components/dashboard/NotesView'
 import { SettingsView } from '@/components/dashboard/SettingsView'
 import { DashboardBottomNavigation, DashboardHeader, QuickAddSheet } from '@/components/dashboard/navigation'
 import { VaultView } from '@/components/vault/VaultView'
+import type { DashboardSearchItem } from '@/components/dashboard/types'
 import {
   ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, ChevronDown,
   CreditCard, Eye, EyeOff, MoreHorizontal, Pencil, Settings2, Sparkles, Target, Trash2,
@@ -26,7 +28,7 @@ export default function Page() {
   const {
     user, authLoading, signOut,
     active, setActive, dark, setDark, showBalance, setShowBalance, dataLoading,
-    viewMonth, viewYear, viewPeriodLabel, showMonthPicker, setShowMonthPicker, shiftMonth, pickMonth,
+    viewMonth, viewYear, viewPeriodLabel, showMonthPicker, setShowMonthPicker, shiftMonth, pickMonth, setViewPeriod,
     showNotifications, setShowNotifications, showHelp, setShowHelp,
     showCategoryDetails, setShowCategoryDetails, showSpendingFlow, setShowSpendingFlow,
     showAdd, setShowAdd,
@@ -49,8 +51,31 @@ export default function Page() {
     plainNotes, savePlainNote, removePlainNote,
     buyListItems, addBuyListItem, toggleBuyListItem, editBuyListItem, removeBuyListItem,
     vaultAccounts, vaultTotal, hiddenVaultTotal, toggleVaultHidden,
+    searchItems,
   } = useExpenseData()
   const hasSpendableExclusions = excludedAccounts.length > 0 || excludedLenders.length > 0
+
+  const [notesInitialTab, setNotesInitialTab] = useState<'financial' | 'plain' | 'buylist' | undefined>(undefined)
+
+  const handleSelectSearchResult = (item: DashboardSearchItem) => {
+    const sectionMap: Record<string, string> = {
+      account: 'Home', transaction: 'Insights', financialNote: 'Notes', plainNote: 'Notes',
+      buyListItem: 'Notes', lender: 'Home', futureExpense: 'Home', goal: 'Settings',
+    }
+    const tabMap: Record<string, 'financial' | 'plain' | 'buylist'> = {
+      financialNote: 'financial', plainNote: 'plain', buyListItem: 'buylist',
+    }
+    if (tabMap[item.type]) setNotesInitialTab(tabMap[item.type])
+    else setNotesInitialTab(undefined)
+    if (item.date) {
+      const date = new Date(`${item.date}T00:00:00`)
+      setViewPeriod(date.getMonth(), date.getFullYear())
+    }
+    setActive(item.section ?? sectionMap[item.type] ?? 'Home')
+    setTimeout(() => {
+      document.getElementById(`search-result-${item.type}-${item.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    }, 350)
+  }
 
   if (authLoading || !user) return null
 
@@ -66,10 +91,11 @@ export default function Page() {
           initials={profile?.initials ?? user.email?.[0]?.toUpperCase() ?? '?'}
           name={profile?.name ?? user.email?.split('@')[0] ?? ''}
           dark={dark}
+          searchItems={searchItems}
+          onSelectSearchResult={handleSelectSearchResult}
           onHelp={() => setShowHelp(true)}
           onToggleDark={() => setDark(!dark)}
           onSettings={() => setActive('Settings')}
-          onSignOut={signOut}
         />
 
         {/* ── Content ── */}
@@ -238,7 +264,7 @@ export default function Page() {
                   ) : (
                     <div className="account-row">
                       {accounts.filter((a) => !a.is_vault).map((acc, i) => (
-                        <motion.article whileHover={{ y: -5 }} className={`account-card ${excludedAccounts.includes(acc.id) ? 'account-excluded' : ''}`} key={acc.id}>
+                        <motion.article whileHover={{ y: -5 }} className={`account-card ${excludedAccounts.includes(acc.id) ? 'account-excluded' : ''}`} key={acc.id} id={`search-result-account-${acc.id}`}>
                           <div className={`account-icon account-${acc.tone}`}>{acc.symbol}</div>
                           <p>{acc.name}</p>
                           <small>{acc.purpose}{acc.annual_interest > 0 ? ` · ${acc.annual_interest}% p.a.` : ''}</small>
@@ -279,7 +305,7 @@ export default function Page() {
                         <strong style={{ color: '#d878a1' }}>{fmt(totalFutureExpenses)}</strong>
                       </div>
                       {futureExpenses.map((fe) => (
-                        <motion.div layout key={fe.id} className="lender-row">
+                        <motion.div layout key={fe.id} className="lender-row" id={`search-result-futureExpense-${fe.id}`}>
                           <div className="lender-avatar" style={{ background: 'linear-gradient(135deg,#d878a1,#f0a8c8)' }}>
                             <CalendarClock style={{ width: 14 }} />
                           </div>
@@ -326,7 +352,7 @@ export default function Page() {
                         )}
                       </div>
                       {lenders.map((lender) => (
-                        <motion.div layout key={lender.id} className="lender-row">
+                        <motion.div layout key={lender.id} className="lender-row" id={`search-result-lender-${lender.id}`}>
                           <div className="lender-avatar">{lender.name[0].toUpperCase()}</div>
                           <div className="lender-info">
                             <p>{lender.name}</p>
@@ -453,6 +479,7 @@ export default function Page() {
                     onToggleBuyItem={toggleBuyListItem}
                     onEditBuyItem={editBuyListItem}
                     onDeleteBuyItem={removeBuyListItem}
+                    initialTab={notesInitialTab}
                   />
                 )}
 
@@ -473,6 +500,7 @@ export default function Page() {
                     onSaveGoal={saveGoal}
                     goal={goal}
                     goalPercent={goalPercent}
+                    onSignOut={signOut}
                   />
                 )}
 
@@ -483,7 +511,10 @@ export default function Page() {
 
         <DashboardBottomNavigation
           active={active}
-          onNavigate={setActive}
+          onNavigate={(section) => {
+            if (section !== 'Notes') setNotesInitialTab(undefined)
+            setActive(section)
+          }}
           onOpenAdd={() => setShowAdd(true)}
         />
         <QuickAddSheet

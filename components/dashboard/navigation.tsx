@@ -1,30 +1,47 @@
 'use client'
 
+import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  ArrowDownLeft, ArrowUpRight, Bell, CalendarClock, CircleHelp, CreditCard,
-  HandCoins, Home, LogOut, Moon, Plus, Settings2, ShieldCheck, Sparkles, Sun,
+  ArrowDownLeft, ArrowUpRight, CalendarClock, CircleHelp, CreditCard,
+  HandCoins, Home, Moon, Plus, Search, Settings2, ShieldCheck, Sparkles, Sun,
   WalletCards, X,
 } from 'lucide-react'
 import { GlassIcon, greeting } from './ui'
+import type { DashboardSearchItem } from './types'
 
 export function DashboardHeader({
   initials,
   name,
   dark,
+  searchItems,
+  onSelectSearchResult,
   onHelp,
   onToggleDark,
   onSettings,
-  onSignOut,
 }: {
   initials: string
   name: string
   dark: boolean
+  searchItems: DashboardSearchItem[]
+  onSelectSearchResult: (item: DashboardSearchItem) => void
   onHelp: () => void
   onToggleDark: () => void
   onSettings: () => void
-  onSignOut: () => void
 }) {
+  const [query, setQuery] = useState('')
+  const normalizedQuery = query.trim().toLocaleLowerCase()
+  const results = normalizedQuery.length < 2
+    ? []
+    : searchItems.filter((item) =>
+      `${item.title} ${item.detail} ${item.searchText ?? ''} ${item.type}`.toLocaleLowerCase().includes(normalizedQuery)
+    ).slice(0, 8)
+
+  const selectResult = (item: DashboardSearchItem) => {
+    onSelectSearchResult(item)
+    setQuery('')
+  }
+
   return (
     <header className="topbar">
       <div className="topbar-left">
@@ -40,10 +57,43 @@ export function DashboardHeader({
                 {unreadCount > 0 && <i />}
               </button> */}
               <button aria-label="Settings" onClick={onSettings}><Settings2 /></button>
-              <button aria-label="Sign out" onClick={onSignOut}><LogOut /></button>
             </div>
           </div>
           <h1 className="topbar-name">{name} <span className="wave">✦</span></h1>
+          <div className="top-search">
+            <Search aria-hidden="true" />
+            <input
+              aria-label="Search your data"
+              placeholder="Search your data"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && results[0]) {
+                  event.preventDefault()
+                  selectResult(results[0])
+                }
+                if (event.key === 'Escape') setQuery('')
+              }}
+            />
+            {normalizedQuery.length >= 2 && (
+              <div className="top-search-results" role="listbox" aria-label="Search results">
+                {results.length === 0 ? (
+                  <p className="top-search-empty">No matching data found</p>
+                ) : results.map((item) => (
+                  <button
+                    key={`${item.type}-${item.id}`}
+                    type="button"
+                    role="option"
+                    aria-selected="false"
+                    onClick={() => selectResult(item)}
+                  >
+                    <span>{item.title}</span>
+                    <small>{item.detail || item.type}</small>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </header>

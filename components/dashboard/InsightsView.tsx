@@ -63,6 +63,25 @@ export function InsightsView({ stats, transactions, month, year }: {
           }
         </div>
       </div>
+      <div className="glass-panel" style={{ padding: '14px', borderRadius: 20, marginTop: 12 }}>
+        <p className="eyebrow" style={{ marginBottom: 10 }}>TRANSACTIONS</p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {monthTxns.length === 0
+            ? <p style={{ color: 'var(--muted)', fontSize: 11 }}>No transactions this month.</p>
+            : monthTxns.map((tx) => (
+              <div key={tx.id} id={`search-result-transaction-${tx.id}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
+                <div>
+                  <p style={{ margin: 0, fontSize: 12, fontWeight: 600 }}>{tx.description || tx.category}</p>
+                  <small style={{ color: 'var(--muted)', fontSize: 10 }}>{tx.category} · {tx.date}</small>
+                </div>
+                <strong style={{ fontSize: 13, color: tx.type === 'income' ? '#18ad99' : '#d878a1' }}>
+                  {tx.type === 'income' ? '+' : '-'}{fmt(tx.amount)}
+                </strong>
+              </div>
+            ))
+          }
+        </div>
+      </div>
     </section>
   )
 }

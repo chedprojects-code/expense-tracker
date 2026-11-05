@@ -105,6 +105,7 @@ export function VaultView({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.95 }}
                 className="glass-panel"
+                id={`search-result-account-${acc.id}`}
                 style={{
                   borderRadius: 20,
                   padding: '14px 16px',

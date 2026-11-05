@@ -106,6 +106,7 @@ export function BuyListContent({ items, onAdd, onToggle, onEdit, onDelete }: {
               layout key={item.id}
               initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
               className={`buy-item glass-panel${item.bought ? ' bought' : ''}`}
+              id={`search-result-buyListItem-${item.id}`}
             >
               <button className="buy-check" onClick={() => onToggle(item.id, item.bought)}>
                 {item.bought ? <CheckCircle2 style={{ width: 18, color: '#18ad99' }} /> : <Circle style={{ width: 18, color: 'var(--muted)' }} />}

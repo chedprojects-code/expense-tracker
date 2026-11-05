@@ -20,7 +20,7 @@ import {
   createLenderDraft, createFutureExpenseDraft,
   generateId, getViewPeriodLabel, isFormValid, shiftMonth as getShiftedMonth,
 } from '@/lib/expense-utils'
-import type { GoalDraft, LenderDraft, FutureExpenseDraft } from '@/components/dashboard/types'
+import type { GoalDraft, LenderDraft, FutureExpenseDraft, DashboardSearchItem } from '@/components/dashboard/types'
 import { createClient } from '@/lib/supabase/client'
 import { useLocalStorage } from '@/hooks/useLocalStorage'
 
@@ -210,6 +210,12 @@ export function useExpenseData() {
 
   const pickMonth = useCallback((m: number) => {
     setViewMonth(m)
+    setShowMonthPicker(false)
+  }, [])
+
+  const setViewPeriod = useCallback((month: number, year: number) => {
+    setViewMonth(month)
+    setViewYear(year)
     setShowMonthPicker(false)
   }, [])
 
@@ -512,6 +518,18 @@ export function useExpenseData() {
     }
   }, [])
 
+  // ── Search items ────────────────────────────────────────────────────────────
+  const searchItems: DashboardSearchItem[] = [
+    ...accounts.map((a) => ({ id: a.id, type: 'account' as const, title: a.name, detail: a.purpose, searchText: `${a.balance} ${a.symbol}`, section: a.is_vault ? 'Vault' : 'Home' })),
+    ...transactions.map((t) => ({ id: t.id, type: 'transaction' as const, title: t.description || t.category, detail: `${t.type} · ${t.date}`, searchText: `${t.category} ${t.amount}`, date: t.date })),
+    ...notes.map((n) => ({ id: n.id, type: 'financialNote' as const, title: n.title, detail: `${n.category} · due ${n.due_date}`, searchText: `${n.amount} ${n.amount_max ?? ''}` })),
+    ...lenders.map((l) => ({ id: l.id, type: 'lender' as const, title: l.name, detail: l.note || 'lender', searchText: String(l.amount) })),
+    ...futureExpenses.map((f) => ({ id: f.id, type: 'futureExpense' as const, title: f.title, detail: `${f.category} · due ${f.due_date}`, searchText: String(f.amount) })),
+    ...plainNotes.map((p) => ({ id: p.id, type: 'plainNote' as const, title: p.title, detail: p.body.slice(0, 40), searchText: p.body })),
+    ...buyListItems.map((b) => ({ id: b.id, type: 'buyListItem' as const, title: b.title, detail: b.category, searchText: `${b.category} ${b.price ?? ''}` })),
+    ...(goal ? [{ id: goal.id, type: 'goal' as const, title: goal.title, detail: `${goalPercent}% of target`, searchText: `${goal.current_amount} ${goal.target_amount}` }] : []),
+  ]
+
   // ── Vault visibility toggle ──────────────────────────────────────────────────────────────
   const toggleVaultHidden = useCallback(async (id: string, currentHidden: boolean) => {
     try {
@@ -544,7 +562,7 @@ export function useExpenseData() {
     // month
     viewMonth, viewYear, viewPeriodLabel,
     showMonthPicker, setShowMonthPicker,
-    shiftMonth, pickMonth,
+    shiftMonth, pickMonth, setViewPeriod,
     // panels
     showNotifications, setShowNotifications,
     showHelp, setShowHelp,
@@ -590,6 +608,8 @@ export function useExpenseData() {
     buyListItems, addBuyListItem, toggleBuyListItem, editBuyListItem, removeBuyListItem,
     // vault
     vaultAccounts, vaultTotal, hiddenVaultTotal, toggleVaultHidden,
+    // search
+    searchItems,
     // reload
     loadData,
   }
