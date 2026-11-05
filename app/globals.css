@@ -127,6 +127,8 @@ button { border:0; font:inherit; color:inherit; cursor:pointer; }
   .account-card { min-width: 0; padding: 6px; }
   .account-card p { margin-top: 8px; }
   .account-card strong { margin-top: 9px; }
+  .buy-add-row { flex-wrap: wrap; }
+  .buy-price-input { flex: 1 1 0; min-width: 0; }
 }
 
 /* ══ AUTH SHELL ══════════════════════════════════════════════════════════════ */
