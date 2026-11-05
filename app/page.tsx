@@ -8,23 +8,19 @@ import {
 import {
   NotificationsPanel, CategoryDetailsPanel, SpendingFlowPanel, HelpPanel,
 } from '@/components/dashboard/panels'
-import { GlassIcon, SectionTitle, toneColors, greeting } from '@/components/dashboard/ui'
+import { GlassIcon, SectionTitle, toneColors } from '@/components/dashboard/ui'
 import { useExpenseData } from '@/components/dashboard/useExpenseData'
-import { InsightsView, NotesView, SettingsView, BuyListView } from '@/components/dashboard/views'
+import { BuyListView } from '@/components/dashboard/BuyListView'
+import { InsightsView } from '@/components/dashboard/InsightsView'
+import { NotesView } from '@/components/dashboard/NotesView'
+import { SettingsView } from '@/components/dashboard/SettingsView'
+import { DashboardBottomNavigation, DashboardHeader, QuickAddSheet } from '@/components/dashboard/navigation'
 import { VaultView } from '@/components/vault/VaultView'
 import {
-  ArrowDownLeft, ArrowUpRight, Bell, ChevronLeft, ChevronRight, ChevronDown,
-  CircleHelp, CreditCard, Eye, EyeOff, Home, LogOut, Moon, MoreHorizontal, Pencil, Plus,
-  Settings2, Sparkles, Sun, Target, Trash2, TrendingUp, WalletCards, X, Loader2, HandCoins, CalendarClock, ShieldCheck, ShoppingCart,
+  ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, ChevronDown,
+  CreditCard, Eye, EyeOff, MoreHorizontal, Pencil, Settings2, Sparkles, Target, Trash2,
+  TrendingUp, WalletCards, Loader2, HandCoins, CalendarClock, ShieldCheck,
 } from 'lucide-react'
-
-const navItems = [
-  { label: 'Home', icon: Home },
-  { label: 'Notes', icon: WalletCards },
-  { label: 'Vault', icon: ShieldCheck },
-  { label: 'Insights', icon: Sparkles },
-  { label: 'Settings', icon: Settings2 },
-]
 
 export default function Page() {
   const {
@@ -56,11 +52,6 @@ export default function Page() {
   } = useExpenseData()
   const hasSpendableExclusions = excludedAccounts.length > 0 || excludedLenders.length > 0
 
-  const openVaultAccount = () => {
-    openAccount()
-    // pre-tick vault after dialog opens — handled via accountDraft default in openAccount
-  }
-
   if (authLoading || !user) return null
 
   return (
@@ -71,28 +62,15 @@ export default function Page() {
       <div className="floating-money money-three">+</div>
 
       <section className="phone-frame">
-        {/* ── Topbar ── */}
-        <header className="topbar">
-          <div className="topbar-left">
-            <div className="avatar">{profile?.initials ?? user.email?.[0]?.toUpperCase() ?? '?'}</div>
-            <div className="topbar-greeting">
-              <div className="topbar-greeting-row">
-                <p className="eyebrow">{greeting()}</p>
-                <div className="top-actions">
-                  <button aria-label="Help" onClick={() => setShowHelp(true)}><CircleHelp /></button>
-                  <button aria-label="Toggle dark mode" onClick={() => setDark(!dark)}>{dark ? <Sun /> : <Moon />}</button>
-                  {/* <button aria-label="Notifications" className="notification" onClick={() => setShowNotifications(true)}>
-                    <Bell />
-                    {unreadCount > 0 && <i />}
-                  </button> */}
-                  <button aria-label="Settings" onClick={() => setActive('Settings')}><Settings2 /></button>
-                  <button aria-label="Sign out" onClick={signOut}><LogOut /></button>
-                </div>
-              </div>
-              <h1 className="topbar-name">{profile?.name ?? user.email?.split('@')[0]} <span className="wave">✦</span></h1>
-            </div>
-          </div>
-        </header>
+        <DashboardHeader
+          initials={profile?.initials ?? user.email?.[0]?.toUpperCase() ?? '?'}
+          name={profile?.name ?? user.email?.split('@')[0] ?? ''}
+          dark={dark}
+          onHelp={() => setShowHelp(true)}
+          onToggleDark={() => setDark(!dark)}
+          onSettings={() => setActive('Settings')}
+          onSignOut={signOut}
+        />
 
         {/* ── Content ── */}
         <div className="content-scroll">
@@ -454,7 +432,7 @@ export default function Page() {
                 {active === 'BuyList' && (
                   <BuyListView
                     items={buyListItems}
-                    onAdd={addBuyListItem}
+                    onAdd={(title, category) => addBuyListItem(title, category, null)}
                     onToggle={toggleBuyListItem}
                     onDelete={removeBuyListItem}
                   />
@@ -503,67 +481,22 @@ export default function Page() {
           )}
         </div>
 
-        {/* ── Bottom Nav ── */}
-        <nav className="bottom-nav" aria-label="Primary navigation">
-          <button className={active === 'Home' ? 'nav-active' : ''} onClick={() => setActive('Home')}>
-            <span><Home /></span><small>Home</small>
-          </button>
-          <button className={active === 'Notes' ? 'nav-active' : ''} onClick={() => setActive('Notes')}>
-            <span><WalletCards /></span><small>Notes</small>
-          </button>
-          <button className="add-nav-btn" onClick={() => setShowAdd(true)}>
-            <span className="add-button"><Plus /></span><small>Add</small>
-          </button>
-          <button className={active === 'Vault' ? 'nav-active' : ''} onClick={() => setActive('Vault')}>
-            <span><ShieldCheck /></span><small>Vault</small>
-          </button>
-          <button className={active === 'Insights' ? 'nav-active' : ''} onClick={() => setActive('Insights')}>
-            <span><Sparkles /></span><small>Insights</small>
-          </button>
-        </nav>
-
-        {/* ── Quick Add Sheet ── */}
-        <AnimatePresence>
-          {showAdd && (
-            <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowAdd(false)}>
-              <motion.div className="add-sheet glass-panel" initial={{ y: 60 }} animate={{ y: 0 }} exit={{ y: 60 }} onClick={(e) => e.stopPropagation()}>
-                <button className="close-button" onClick={() => setShowAdd(false)}><X /></button>
-                <p className="eyebrow">QUICK ACTION</p>
-                <h2>What would you like to add?</h2>
-                <div className="quick-actions">
-                  <button onClick={() => { setShowAdd(false); openTx('income') }}>
-                    <GlassIcon tone="teal"><ArrowDownLeft /></GlassIcon>
-                    <span>Income<small>Money received</small></span>
-                  </button>
-                  <button onClick={() => { setShowAdd(false); openTx('expense') }}>
-                    <GlassIcon tone="pink"><ArrowUpRight /></GlassIcon>
-                    <span>Expense<small>Money spent</small></span>
-                  </button>
-                  <button onClick={() => { setShowAdd(false); setActive('Notes'); openNote() }}>
-                    <GlassIcon tone="violet"><WalletCards /></GlassIcon>
-                    <span>Note<small>Plan a purchase</small></span>
-                  </button>
-                  <button onClick={() => { setShowAdd(false); openAccount() }}>
-                    <GlassIcon tone="gold"><CreditCard /></GlassIcon>
-                    <span>Account<small>Add a wallet</small></span>
-                  </button>
-                  <button onClick={() => { setShowAdd(false); openLender() }}>
-                    <GlassIcon tone="teal"><HandCoins /></GlassIcon>
-                    <span>Lender<small>Track who owes you</small></span>
-                  </button>
-                  <button onClick={() => { setShowAdd(false); openFutureExpense() }}>
-                    <GlassIcon tone="pink"><CalendarClock /></GlassIcon>
-                    <span>Future Exp.<small>Plan ahead</small></span>
-                  </button>
-                  <button onClick={() => { setShowAdd(false); setActive('Vault'); openAccount() }}>
-                    <GlassIcon tone="violet"><ShieldCheck /></GlassIcon>
-                    <span>Vault<small>Precious savings</small></span>
-                  </button>
-                </div>
-              </motion.div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        <DashboardBottomNavigation
+          active={active}
+          onNavigate={setActive}
+          onOpenAdd={() => setShowAdd(true)}
+        />
+        <QuickAddSheet
+          open={showAdd}
+          onClose={() => setShowAdd(false)}
+          onIncome={() => { setShowAdd(false); openTx('income') }}
+          onExpense={() => { setShowAdd(false); openTx('expense') }}
+          onNote={() => { setShowAdd(false); setActive('Notes'); openNote() }}
+          onAccount={() => { setShowAdd(false); openAccount() }}
+          onLender={() => { setShowAdd(false); openLender() }}
+          onFutureExpense={() => { setShowAdd(false); openFutureExpense() }}
+          onVault={() => { setShowAdd(false); setActive('Vault'); openAccount() }}
+        />
 
         {/* ── Dialogs ── */}
         <NoteDialog open={showNoteDialog} draft={noteDraft} setDraft={setNoteDraft} onSave={saveNote} onClose={closeNote} isEditing={editingNote !== null} />

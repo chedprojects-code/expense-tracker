@@ -1,10 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { motion } from 'framer-motion'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/auth/AuthProvider'
-import { ArrowRight, CheckCircle2, Eye, EyeOff, Loader2, Mail, Lock, Sparkles, User } from 'lucide-react'
+import { AuthMessage } from '@/components/auth/AuthMessage'
+import { AuthPageShell } from '@/components/auth/AuthPageShell'
+import { ArrowRight, Eye, EyeOff, Loader2, Mail, Lock, User } from 'lucide-react'
 
 export default function SignupPage() {
   const [name, setName] = useState('')
@@ -37,41 +38,9 @@ export default function SignupPage() {
   }
 
   return (
-    <main className="auth-shell">
-      <div className="auth-blob auth-blob-1" />
-      <div className="auth-blob auth-blob-2" />
-      <div className="auth-blob auth-blob-3" />
-
-      <div className="auth-center">
-        <motion.div
-          initial={{ opacity: 0, y: 28 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="auth-card"
-        >
-          <div className="auth-header">
-            <motion.div
-              animate={{ rotate: [0, 8, -8, 0] }}
-              transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
-              className="auth-icon-wrap"
-            >
-              <Sparkles className="w-8 h-8 text-white" />
-            </motion.div>
-            <h1 className="auth-title">Create your account</h1>
-            <p className="auth-subtitle">Start tracking your finances today</p>
-          </div>
-
-          {success && (
-            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="auth-alert auth-alert-success">
-              <CheckCircle2 className="w-4 h-4" /><span>{success}</span>
-            </motion.div>
-          )}
-          {error && (
-            <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="auth-alert auth-alert-error">
-              <span className="auth-alert-dot">!</span><span>{error}</span>
-            </motion.div>
-          )}
-
+    <AuthPageShell title="Create your account" description="Start tracking your finances today">
+          {success && <AuthMessage type="success" message={success} />}
+          {error && <AuthMessage type="error" message={error} />}
           <form onSubmit={handleSubmit} className="auth-form">
             <div className="auth-field">
               <User className="auth-field-icon" />
@@ -105,8 +74,6 @@ export default function SignupPage() {
               Sign in
             </button>
           </p>
-        </motion.div>
-      </div>
-    </main>
+    </AuthPageShell>
   )
 }
