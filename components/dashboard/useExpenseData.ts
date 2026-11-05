@@ -67,7 +67,7 @@ export function useExpenseData() {
   }, [setHiddenLenders])
 
   // ── UI state ────────────────────────────────────────────────────────────────
-  const [active, setActive] = useState('Home')
+  const [active, setActive] = useLocalStorage('pref:activeTab', 'Home')
   const [dataLoading, setDataLoading] = useState(true)
   const [viewMonth, setViewMonth] = useState(() => new Date().getMonth())
   const [viewYear, setViewYear] = useState(() => new Date().getFullYear())
