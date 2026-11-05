@@ -73,13 +73,13 @@ export function NotesView({
 
       <div className="notes-tabs">
         <button className={tab === 'financial' ? 'notes-tab active' : 'notes-tab'} onClick={() => setTab('financial')}>
-          <WalletCards style={{ width: 13 }} /> Financial
+          <WalletCards style={{ width: 15 }} /> Financial
         </button>
         <button className={tab === 'plain' ? 'notes-tab active' : 'notes-tab'} onClick={() => setTab('plain')}>
-          <StickyNote style={{ width: 13 }} /> Plain
+          <StickyNote style={{ width: 15 }} /> Plain
         </button>
         <button className={tab === 'buylist' ? 'notes-tab active' : 'notes-tab'} onClick={() => setTab('buylist')}>
-          <ShoppingCart style={{ width: 13 }} /> Buy List
+          <ShoppingCart style={{ width: 15 }} /> Buy List
         </button>
       </div>
 

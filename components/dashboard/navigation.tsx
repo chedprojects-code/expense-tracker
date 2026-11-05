@@ -118,7 +118,7 @@ export function DashboardBottomNavigation({
         <span><WalletCards /></span><small>Notes</small>
       </button>
       <button className="add-nav-btn" onClick={onOpenAdd}>
-        <span className="add-button"><Plus /></span><small>Add</small>
+        <span className="add-button"><Plus /></span>
       </button>
       <button className={active === 'Vault' ? 'nav-active' : ''} onClick={() => onNavigate('Vault')}>
         <span><ShieldCheck /></span><small>Vault</small>
