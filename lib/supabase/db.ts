@@ -426,3 +426,39 @@ export async function deleteFutureExpense(id: string) {
   const { error } = await supabase.from('future_expenses').delete().eq('id', id)
   throwOnSupabaseError(error)
 }
+
+// ─── Buy List ──────────────────────────────────────────────────────────────────
+export type BuyListItem = {
+  id: string
+  user_id: string
+  title: string
+  price: number | null
+  category: 'need' | 'want'
+  bought: boolean
+  created_at: string
+}
+
+export async function getBuyListItems(userId: string): Promise<BuyListItem[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase.from('buy_list_items').select('*').eq('user_id', userId).order('created_at', { ascending: false })
+  throwOnSupabaseError(error)
+  return data ?? []
+}
+
+export async function insertBuyListItem(item: Omit<BuyListItem, 'id' | 'created_at'>) {
+  const supabase = createClient()
+  const { error } = await supabase.from('buy_list_items').insert(item)
+  throwOnSupabaseError(error)
+}
+
+export async function updateBuyListItem(id: string, updates: Partial<Pick<BuyListItem, 'bought' | 'title' | 'category' | 'price'>>) {
+  const supabase = createClient()
+  const { error } = await supabase.from('buy_list_items').update(updates).eq('id', id)
+  throwOnSupabaseError(error)
+}
+
+export async function deleteBuyListItem(id: string) {
+  const supabase = createClient()
+  const { error } = await supabase.from('buy_list_items').delete().eq('id', id)
+  throwOnSupabaseError(error)
+}

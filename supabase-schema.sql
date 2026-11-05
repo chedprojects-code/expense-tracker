@@ -213,4 +213,27 @@ end $$;
 -- Price range on notes (amount_max = null means exact price)
 alter table notes add column if not exists amount_max numeric;
 
+-- Buy List
+create table if not exists buy_list_items (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  title text not null,
+  category text not null default 'need',
+  bought boolean not null default false,
+  created_at timestamptz default now()
+);
+
+alter table buy_list_items enable row level security;
+drop policy if exists "Users can manage their own buy list" on buy_list_items;
+create policy "Users can manage their own buy list" on buy_list_items for all using (auth.uid() = user_id);
+
+do $$ begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and tablename = 'buy_list_items'
+  ) then
+    alter publication supabase_realtime add table buy_list_items;
+  end if;
+end $$;
+
 notify pgrst, 'reload schema';

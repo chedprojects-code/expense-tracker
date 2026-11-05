@@ -4,13 +4,13 @@ import type { Dispatch, SetStateAction } from 'react'
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
-  Calendar, CreditCard, Loader2, Pencil, Plus, Save, Sparkles, Trash2, WalletCards, FileText, X, StickyNote, Eye,
+  Calendar, CreditCard, Loader2, Pencil, Plus, Save, Sparkles, Trash2, WalletCards, FileText, X, StickyNote, Eye, ShoppingCart, CheckCircle2, Circle,
 } from 'lucide-react'
-import { calcStats, fmt, type Note, type PlainNote, type SavingsGoal, type Transaction } from '@/lib/supabase/db'
+import { calcStats, fmt, type Note, type PlainNote, type SavingsGoal, type Transaction, type BuyListItem } from '@/lib/supabase/db'
 import type { GoalDraft, NoteDraft } from '@/components/dashboard/types'
 import { GlassIcon, SectionTitle, toneColors } from './ui'
 
-export function NotesView({ notes, onAdd, onEdit, onDelete, plainNotes, onSavePlainNote, onDeletePlainNote }: {
+export function NotesView({ notes, onAdd, onEdit, onDelete, plainNotes, onSavePlainNote, onDeletePlainNote, buyListItems, onAddBuyItem, onToggleBuyItem, onEditBuyItem, onDeleteBuyItem }: {
   notes: Note[]
   onAdd: () => void
   onEdit: (note: Note) => void
@@ -18,8 +18,13 @@ export function NotesView({ notes, onAdd, onEdit, onDelete, plainNotes, onSavePl
   plainNotes: import('@/lib/supabase/db').PlainNote[]
   onSavePlainNote: (id: string | null, title: string, body: string) => Promise<void>
   onDeletePlainNote: (id: string) => Promise<void>
+  buyListItems: BuyListItem[]
+  onAddBuyItem: (title: string, category: 'need' | 'want', price: number | null) => Promise<void>
+  onToggleBuyItem: (id: string, bought: boolean) => Promise<void>
+  onEditBuyItem: (id: string, title: string, price: number | null, category: 'need' | 'want') => Promise<void>
+  onDeleteBuyItem: (id: string) => Promise<void>
 }) {
-  const [tab, setTab] = useState<'financial' | 'plain'>('financial')
+  const [tab, setTab] = useState<'financial' | 'plain' | 'buylist'>('financial')
   const [showDialog, setShowDialog] = useState(false)
   const [editing, setEditing] = useState<import('@/lib/supabase/db').PlainNote | null>(null)
   const [draftTitle, setDraftTitle] = useState('')
@@ -56,7 +61,10 @@ export function NotesView({ notes, onAdd, onEdit, onDelete, plainNotes, onSavePl
           <WalletCards style={{ width: 13 }} /> Financial
         </button>
         <button className={tab === 'plain' ? 'notes-tab active' : 'notes-tab'} onClick={() => setTab('plain')}>
-          <StickyNote style={{ width: 13 }} /> Plain Notes
+          <StickyNote style={{ width: 13 }} /> Plain
+        </button>
+        <button className={tab === 'buylist' ? 'notes-tab active' : 'notes-tab'} onClick={() => setTab('buylist')}>
+          <ShoppingCart style={{ width: 13 }} /> Buy List
         </button>
       </div>
 
@@ -146,6 +154,16 @@ export function NotesView({ notes, onAdd, onEdit, onDelete, plainNotes, onSavePl
         </div>
       )}
 
+      {tab === 'buylist' && (
+        <BuyListContent
+          items={buyListItems}
+          onAdd={onAddBuyItem}
+          onToggle={onToggleBuyItem}
+          onEdit={onEditBuyItem}
+          onDelete={onDeleteBuyItem}
+        />
+      )}
+
       {/* Plain note view modal */}
       <AnimatePresence>
         {viewing && (
@@ -218,6 +236,231 @@ export function NotesView({ notes, onAdd, onEdit, onDelete, plainNotes, onSavePl
           </motion.div>
         )}
       </AnimatePresence>
+    </section>
+  )
+}
+
+function BuyListContent({ items, onAdd, onToggle, onEdit, onDelete }: {
+  items: BuyListItem[]
+  onAdd: (title: string, category: 'need' | 'want', price: number | null) => Promise<void>
+  onToggle: (id: string, bought: boolean) => Promise<void>
+  onEdit: (id: string, title: string, price: number | null, category: 'need' | 'want') => Promise<void>
+  onDelete: (id: string) => Promise<void>
+}) {
+  const [buyTab, setBuyTab] = useState<'need' | 'want'>('need')
+  const [title, setTitle] = useState('')
+  const [price, setPrice] = useState('')
+  const [editingItem, setEditingItem] = useState<BuyListItem | null>(null)
+  const [editTitle, setEditTitle] = useState('')
+  const [editPrice, setEditPrice] = useState('')
+  const [editCategory, setEditCategory] = useState<'need' | 'want'>('need')
+
+  const filtered = items.filter((i) => i.category === buyTab)
+  const boughtCount = filtered.filter((i) => i.bought).length
+  const total = filtered.reduce((sum, i) => sum + (i.price ?? 0), 0)
+  const boughtTotal = filtered.filter((i) => i.bought).reduce((sum, i) => sum + (i.price ?? 0), 0)
+
+  const handleAdd = async () => {
+    if (!title.trim()) return
+    await onAdd(title.trim(), buyTab, price ? parseFloat(price) : null)
+    setTitle('')
+    setPrice('')
+  }
+
+  const openEdit = (item: BuyListItem) => {
+    setEditingItem(item)
+    setEditTitle(item.title)
+    setEditPrice(item.price != null ? String(item.price) : '')
+    setEditCategory(item.category)
+  }
+
+  const handleSaveEdit = async () => {
+    if (!editingItem || !editTitle.trim()) return
+    await onEdit(editingItem.id, editTitle.trim(), editPrice ? parseFloat(editPrice) : null, editCategory)
+    setEditingItem(null)
+  }
+
+  return (
+    <div>
+      <div className="notes-tabs" style={{ marginBottom: 12 }}>
+        <button className={buyTab === 'need' ? 'notes-tab active' : 'notes-tab'} onClick={() => setBuyTab('need')}>
+          <ShoppingCart style={{ width: 13 }} /> Needs
+        </button>
+        <button className={buyTab === 'want' ? 'notes-tab active' : 'notes-tab'} onClick={() => setBuyTab('want')}>
+          <Sparkles style={{ width: 13 }} /> Wants
+        </button>
+      </div>
+
+      {/* Add row */}
+      <div className="buy-add-row">
+        <input
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+          placeholder={`Add a ${buyTab}...`}
+          className="buy-input"
+        />
+        <input
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+          placeholder="Price"
+          inputMode="decimal"
+          className="buy-input buy-price-input"
+        />
+        <button className="buy-add-btn" onClick={handleAdd} disabled={!title.trim()}>
+          <Plus style={{ width: 15 }} />
+        </button>
+      </div>
+
+      {/* Totals */}
+      {filtered.length > 0 && (
+        <div className="buy-totals glass-panel">
+          <div className="buy-totals-row">
+            <span className="eyebrow">TOTAL</span>
+            <strong style={{ color: '#7168db' }}>{total > 0 ? fmt(total) : '—'}</strong>
+          </div>
+          <div className="buy-totals-row">
+            <span className="eyebrow">BOUGHT</span>
+            <strong style={{ color: '#18ad99' }}>{boughtTotal > 0 ? fmt(boughtTotal) : '—'}</strong>
+          </div>
+          <div className="buy-totals-row">
+            <span className="eyebrow">PROGRESS</span>
+            <strong>{boughtCount}/{filtered.length} items</strong>
+          </div>
+        </div>
+      )}
+
+      <div className="notes-list">
+        {filtered.length === 0 && (
+          <div className="empty-notes glass-panel">
+            <ShoppingCart style={{ width: 25, color: '#7168db' }} />
+            <p>No {buyTab}s yet</p>
+          </div>
+        )}
+        <AnimatePresence>
+          {filtered.map((item) => (
+            <motion.div
+              layout key={item.id}
+              initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
+              className={`buy-item glass-panel${item.bought ? ' bought' : ''}`}
+            >
+              <button className="buy-check" onClick={() => onToggle(item.id, item.bought)}>
+                {item.bought ? <CheckCircle2 style={{ width: 18, color: '#18ad99' }} /> : <Circle style={{ width: 18, color: 'var(--muted)' }} />}
+              </button>
+              <div className="buy-info">
+                <span className="buy-title">{item.title}</span>
+                {item.price != null && (
+                  <span className="buy-price">{fmt(item.price)}</span>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button className="buy-delete" onClick={() => openEdit(item)}><Pencil style={{ width: 12 }} /></button>
+                <button className="buy-delete" onClick={() => onDelete(item.id)}><Trash2 style={{ width: 13 }} /></button>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+
+      {/* Edit dialog */}
+      <AnimatePresence>
+        {editingItem && (
+          <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEditingItem(null)}>
+            <motion.div className="note-dialog glass-panel" initial={{ scale: 0.92, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.92, opacity: 0 }} onClick={(e) => e.stopPropagation()}>
+              <button className="close-button" onClick={() => setEditingItem(null)}><X /></button>
+              <h2>Edit Item</h2>
+              <label>Item name
+                <input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} placeholder="Item name" autoFocus />
+              </label>
+              <label style={{ marginTop: 12 }}>Price (optional)
+                <input value={editPrice} onChange={(e) => setEditPrice(e.target.value)} placeholder="0" inputMode="decimal" />
+              </label>
+              <label style={{ marginTop: 12 }}>Category
+                <select value={editCategory} onChange={(e) => setEditCategory(e.target.value as 'need' | 'want')}>
+                  <option value="need">Need</option>
+                  <option value="want">Want</option>
+                </select>
+              </label>
+              <button className="primary-button" onClick={handleSaveEdit} disabled={!editTitle.trim()} style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Save style={{ width: 14 }} /> Save Changes
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+export function BuyListView({ items, onAdd, onToggle, onDelete }: {
+  items: BuyListItem[]
+  onAdd: (title: string, category: 'need' | 'want') => Promise<void>
+  onToggle: (id: string, bought: boolean) => Promise<void>
+  onDelete: (id: string) => Promise<void>
+}) {
+  const [tab, setTab] = useState<'need' | 'want'>('need')
+  const [input, setInput] = useState('')
+
+  const filtered = items.filter((i) => i.category === tab)
+  const bought = filtered.filter((i) => i.bought).length
+
+  const handleAdd = async () => {
+    if (!input.trim()) return
+    await onAdd(input.trim(), tab)
+    setInput('')
+  }
+
+  return (
+    <section className="notes-page">
+      <SectionTitle eyebrow="BUY LIST" title="Things to buy" />
+
+      <div className="notes-tabs">
+        <button className={tab === 'need' ? 'notes-tab active' : 'notes-tab'} onClick={() => setTab('need')}>
+          <ShoppingCart style={{ width: 13 }} /> Needs
+        </button>
+        <button className={tab === 'want' ? 'notes-tab active' : 'notes-tab'} onClick={() => setTab('want')}>
+          <Sparkles style={{ width: 13 }} /> Wants
+        </button>
+      </div>
+
+      <div className="buy-add-row">
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+          placeholder={`Add a ${tab}...`}
+          className="buy-input"
+        />
+        <button className="buy-add-btn" onClick={handleAdd} disabled={!input.trim()}>
+          <Plus style={{ width: 15 }} />
+        </button>
+      </div>
+
+      {filtered.length > 0 && (
+        <p className="buy-progress-label">{bought}/{filtered.length} bought</p>
+      )}
+
+      <div className="notes-list">
+        {filtered.length === 0 && (
+          <div className="empty-notes glass-panel">
+            <ShoppingCart style={{ width: 25, color: '#7168db' }} />
+            <p>No {tab}s yet</p>
+          </div>
+        )}
+        {filtered.map((item) => (
+          <motion.div
+            layout key={item.id}
+            initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
+            className={`buy-item glass-panel${item.bought ? ' bought' : ''}`}
+          >
+            <button className="buy-check" onClick={() => onToggle(item.id, item.bought)}>
+              {item.bought ? <CheckCircle2 style={{ width: 18, color: '#18ad99' }} /> : <Circle style={{ width: 18, color: 'var(--muted)' }} />}
+            </button>
+            <span className="buy-title">{item.title}</span>
+            <button className="buy-delete" onClick={() => onDelete(item.id)}><Trash2 style={{ width: 13 }} /></button>
+          </motion.div>
+        ))}
+      </div>
     </section>
   )
 }

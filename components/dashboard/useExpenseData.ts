@@ -10,9 +10,10 @@ import {
   getLenders, upsertLender, deleteLender,
   getFutureExpenses, upsertFutureExpense, deleteFutureExpense,
   getPlainNotes, upsertPlainNote, deletePlainNote,
+  getBuyListItems, insertBuyListItem, updateBuyListItem, deleteBuyListItem,
   calcStats, buildChartPaths,
   applyDailyInterest,
-  type Account, type Note, type SavingsGoal, type Transaction, type Notification, type Lender, type FutureExpense, type PlainNote,
+  type Account, type Note, type SavingsGoal, type Transaction, type Notification, type Lender, type FutureExpense, type PlainNote, type BuyListItem,
 } from '@/lib/supabase/db'
 import {
   createAccountDraft, createGoalDraft, createNoteDraft, createProfileDraft, createTxDraft,
@@ -103,6 +104,9 @@ export function useExpenseData() {
   // ── Plain notes state ──────────────────────────────────────────────────────────────
   const [plainNotes, setPlainNotes] = useState<PlainNote[]>([])
 
+  // ── Buy list state ─────────────────────────────────────────────────────────
+  const [buyListItems, setBuyListItems] = useState<BuyListItem[]>([])
+
   const [goalDraft, setGoalDraft] = useState<GoalDraft>(() => createGoalDraft())
   const [profileDraft, setProfileDraft] = useState(() => createProfileDraft())
   const [savingProfile, setSavingProfile] = useState(false)
@@ -122,7 +126,7 @@ export function useExpenseData() {
     if (!user) return
     setDataLoading(true)
     try {
-      const [p, a, t, n, g, notifs, lnds, fe, pn] = await Promise.all([
+      const [p, a, t, n, g, notifs, lnds, fe, pn, bl] = await Promise.all([
         getProfile(user.id),
         getAccounts(user.id),
         getTransactions(user.id),
@@ -132,6 +136,7 @@ export function useExpenseData() {
         getLenders(user.id),
         getFutureExpenses(user.id),
         getPlainNotes(user.id),
+        getBuyListItems(user.id),
       ])
       setProfile(p)
       setAccounts(a)
@@ -147,6 +152,7 @@ export function useExpenseData() {
       setLenders(lnds)
       setFutureExpenses(fe)
       setPlainNotes(pn)
+      setBuyListItems(bl)
       if (p) setProfileDraft(createProfileDraft(p))
       if (g) setGoalDraft(createGoalDraft(g))
     } catch (err) {
@@ -170,6 +176,7 @@ export function useExpenseData() {
       .on('postgres_changes', { event: '*', schema: 'public', table: 'lenders', filter: `user_id=eq.${user.id}` }, () => loadData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'future_expenses', filter: `user_id=eq.${user.id}` }, () => loadData())
       .on('postgres_changes', { event: '*', schema: 'public', table: 'plain_notes', filter: `user_id=eq.${user.id}` }, () => loadData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'buy_list_items', filter: `user_id=eq.${user.id}` }, () => loadData())
       .subscribe()
     return () => { supabase.removeChannel(channel) }
   }, [user, loadData])
@@ -447,6 +454,44 @@ export function useExpenseData() {
     }
   }, [])
 
+  // ── Buy List CRUD ───────────────────────────────────────────────────────────
+  const addBuyListItem = useCallback(async (title: string, category: 'need' | 'want', price: number | null) => {
+    if (!user || !title.trim()) return
+    try {
+      await insertBuyListItem({ user_id: user.id, title, category, price, bought: false })
+      await loadData()
+    } catch (err) {
+      console.error('[addBuyListItem]', err)
+    }
+  }, [user, loadData])
+
+  const toggleBuyListItem = useCallback(async (id: string, bought: boolean) => {
+    try {
+      await updateBuyListItem(id, { bought: !bought })
+      setBuyListItems((prev) => prev.map((x) => x.id === id ? { ...x, bought: !bought } : x))
+    } catch (err) {
+      console.error('[toggleBuyListItem]', err)
+    }
+  }, [])
+
+  const editBuyListItem = useCallback(async (id: string, title: string, price: number | null, category: 'need' | 'want') => {
+    try {
+      await updateBuyListItem(id, { title, price, category })
+      setBuyListItems((prev) => prev.map((x) => x.id === id ? { ...x, title, price, category } : x))
+    } catch (err) {
+      console.error('[editBuyListItem]', err)
+    }
+  }, [])
+
+  const removeBuyListItem = useCallback(async (id: string) => {
+    try {
+      await deleteBuyListItem(id)
+      setBuyListItems((prev) => prev.filter((x) => x.id !== id))
+    } catch (err) {
+      console.error('[removeBuyListItem]', err)
+    }
+  }, [])
+
   // ── Plain Notes CRUD ──────────────────────────────────────────────────────────────
   const savePlainNote = useCallback(async (id: string | null, title: string, body: string) => {
     if (!user) return
@@ -541,6 +586,8 @@ export function useExpenseData() {
     openFutureExpense, closeFutureExpense, saveFutureExpense, removeFutureExpense,
     // plain notes
     plainNotes, savePlainNote, removePlainNote,
+    // buy list
+    buyListItems, addBuyListItem, toggleBuyListItem, editBuyListItem, removeBuyListItem,
     // vault
     vaultAccounts, vaultTotal, hiddenVaultTotal, toggleVaultHidden,
     // reload

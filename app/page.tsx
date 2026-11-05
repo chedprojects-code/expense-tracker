@@ -10,12 +10,12 @@ import {
 } from '@/components/dashboard/panels'
 import { GlassIcon, SectionTitle, toneColors, greeting } from '@/components/dashboard/ui'
 import { useExpenseData } from '@/components/dashboard/useExpenseData'
-import { InsightsView, NotesView, SettingsView } from '@/components/dashboard/views'
+import { InsightsView, NotesView, SettingsView, BuyListView } from '@/components/dashboard/views'
 import { VaultView } from '@/components/vault/VaultView'
 import {
   ArrowDownLeft, ArrowUpRight, Bell, ChevronLeft, ChevronRight, ChevronDown,
   CircleHelp, CreditCard, Eye, EyeOff, Home, LogOut, Moon, MoreHorizontal, Pencil, Plus,
-  Settings2, Sparkles, Sun, Target, Trash2, TrendingUp, WalletCards, X, Loader2, HandCoins, CalendarClock, ShieldCheck,
+  Settings2, Sparkles, Sun, Target, Trash2, TrendingUp, WalletCards, X, Loader2, HandCoins, CalendarClock, ShieldCheck, ShoppingCart,
 } from 'lucide-react'
 
 const navItems = [
@@ -51,6 +51,7 @@ export default function Page() {
     showFutureExpenseDialog, futureExpenseDraft, setFutureExpenseDraft, editingFutureExpense,
     openFutureExpense, closeFutureExpense, saveFutureExpense, removeFutureExpense,
     plainNotes, savePlainNote, removePlainNote,
+    buyListItems, addBuyListItem, toggleBuyListItem, editBuyListItem, removeBuyListItem,
     vaultAccounts, vaultTotal, hiddenVaultTotal, toggleVaultHidden,
   } = useExpenseData()
   const hasSpendableExclusions = excludedAccounts.length > 0 || excludedLenders.length > 0
@@ -449,6 +450,16 @@ export default function Page() {
                   />
                 )}
 
+                {/* ══ BUY LIST ══ */}
+                {active === 'BuyList' && (
+                  <BuyListView
+                    items={buyListItems}
+                    onAdd={addBuyListItem}
+                    onToggle={toggleBuyListItem}
+                    onDelete={removeBuyListItem}
+                  />
+                )}
+
                 {/* ══ NOTES ══ */}
                 {active === 'Notes' && (
                   <NotesView
@@ -459,6 +470,11 @@ export default function Page() {
                     plainNotes={plainNotes}
                     onSavePlainNote={savePlainNote}
                     onDeletePlainNote={removePlainNote}
+                    buyListItems={buyListItems}
+                    onAddBuyItem={addBuyListItem}
+                    onToggleBuyItem={toggleBuyListItem}
+                    onEditBuyItem={editBuyListItem}
+                    onDeleteBuyItem={removeBuyListItem}
                   />
                 )}
 
