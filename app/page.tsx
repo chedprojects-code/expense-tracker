@@ -515,7 +515,7 @@ export default function Page() {
         <DashboardBottomNavigation
           active={active}
           onNavigate={(section) => {
-            if (section !== 'Notes') setNotesInitialTab(undefined)
+            if (section !== 'Notes') setNotesTab('financial')
             setActive(section)
           }}
           onOpenAdd={() => setShowAdd(true)}
