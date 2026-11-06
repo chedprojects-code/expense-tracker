@@ -234,7 +234,7 @@ export function useExpenseData() {
   const saveNote = useCallback(async () => {
     if (!user || !isFormValid(noteDraft, ['title', 'amount', 'due_date'])) return
     try {
-      await upsertNote({
+      const saved = await upsertNote({
         id: editingNote?.id ?? generateId(),
         user_id: user.id,
         title: noteDraft.title,
@@ -244,12 +244,14 @@ export function useExpenseData() {
         category: noteDraft.category,
         updated_at: new Date().toISOString(),
       })
+      setNotes((prev) =>
+        editingNote ? prev.map((x) => x.id === saved.id ? saved : x) : [saved, ...prev]
+      )
       closeNote()
-      await loadData()
     } catch (err) {
       console.error('[saveNote]', err)
     }
-  }, [noteDraft, editingNote, user, closeNote, loadData])
+  }, [noteDraft, editingNote, user, closeNote])
 
   const removeNote = useCallback(async (id: string) => {
     try {
@@ -464,12 +466,12 @@ export function useExpenseData() {
   const addBuyListItem = useCallback(async (title: string, category: 'need' | 'want', price: number | null) => {
     if (!user || !title.trim()) return
     try {
-      await insertBuyListItem({ user_id: user.id, title, category, price, bought: false })
-      await loadData()
+      const saved = await insertBuyListItem({ user_id: user.id, title, category, price, bought: false })
+      setBuyListItems((prev) => [saved, ...prev])
     } catch (err) {
       console.error('[addBuyListItem]', err)
     }
-  }, [user, loadData])
+  }, [user])
 
   const toggleBuyListItem = useCallback(async (id: string, bought: boolean) => {
     try {
@@ -486,6 +488,7 @@ export function useExpenseData() {
       setBuyListItems((prev) => prev.map((x) => x.id === id ? { ...x, title, price, category } : x))
     } catch (err) {
       console.error('[editBuyListItem]', err)
+      setBuyListItems((prev) => [...prev]) // force re-render on error to stay consistent
     }
   }, [])
 
@@ -502,12 +505,14 @@ export function useExpenseData() {
   const savePlainNote = useCallback(async (id: string | null, title: string, body: string) => {
     if (!user) return
     try {
-      await upsertPlainNote({ id: id ?? generateId(), user_id: user.id, title, body, updated_at: new Date().toISOString() })
-      await loadData()
+      const saved = await upsertPlainNote({ id: id ?? generateId(), user_id: user.id, title, body, updated_at: new Date().toISOString() })
+      setPlainNotes((prev) =>
+        id ? prev.map((x) => x.id === saved.id ? saved : x) : [saved, ...prev]
+      )
     } catch (err) {
       console.error('[savePlainNote]', err)
     }
-  }, [user, loadData])
+  }, [user])
 
   const removePlainNote = useCallback(async (id: string) => {
     try {

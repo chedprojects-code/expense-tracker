@@ -299,10 +299,11 @@ export async function getNotes(userId: string): Promise<Note[]> {
   return data ?? []
 }
 
-export async function upsertNote(note: Omit<Note, 'created_at'>) {
+export async function upsertNote(note: Omit<Note, 'created_at'>): Promise<Note> {
   const supabase = createClient()
-  const { error } = await supabase.from('notes').upsert({ ...note, updated_at: new Date().toISOString() })
+  const { data, error } = await supabase.from('notes').upsert({ ...note, updated_at: new Date().toISOString() }).select().single()
   throwOnSupabaseError(error)
+  return data
 }
 
 // ─── Plain Notes ──────────────────────────────────────────────────────────────
@@ -317,10 +318,11 @@ export async function getPlainNotes(userId: string): Promise<PlainNote[]> {
   return data ?? []
 }
 
-export async function upsertPlainNote(note: Omit<PlainNote, 'created_at'>) {
+export async function upsertPlainNote(note: Omit<PlainNote, 'created_at'>): Promise<PlainNote> {
   const supabase = createClient()
-  const { error } = await supabase.from('plain_notes').upsert({ ...note, updated_at: new Date().toISOString() })
+  const { data, error } = await supabase.from('plain_notes').upsert({ ...note, updated_at: new Date().toISOString() }).select().single()
   throwOnSupabaseError(error)
+  return data
 }
 
 export async function deletePlainNote(id: string) {
@@ -445,10 +447,11 @@ export async function getBuyListItems(userId: string): Promise<BuyListItem[]> {
   return data ?? []
 }
 
-export async function insertBuyListItem(item: Omit<BuyListItem, 'id' | 'created_at'>) {
+export async function insertBuyListItem(item: Omit<BuyListItem, 'id' | 'created_at'>): Promise<BuyListItem> {
   const supabase = createClient()
-  const { error } = await supabase.from('buy_list_items').insert(item)
+  const { data, error } = await supabase.from('buy_list_items').insert(item).select().single()
   throwOnSupabaseError(error)
+  return data
 }
 
 export async function updateBuyListItem(id: string, updates: Partial<Pick<BuyListItem, 'bought' | 'title' | 'category' | 'price'>>) {

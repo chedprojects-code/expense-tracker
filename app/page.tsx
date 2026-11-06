@@ -55,7 +55,8 @@ export default function Page() {
   } = useExpenseData()
   const hasSpendableExclusions = excludedAccounts.length > 0 || excludedLenders.length > 0
 
-  const [notesInitialTab, setNotesInitialTab] = useState<'financial' | 'plain' | 'buylist' | undefined>(undefined)
+  const [notesTab, setNotesTab] = useState<'financial' | 'plain' | 'buylist'>('financial')
+  const [buyTab, setBuyTab] = useState<'need' | 'want'>('need')
 
   const handleSelectSearchResult = (item: DashboardSearchItem) => {
     const sectionMap: Record<string, string> = {
@@ -65,8 +66,7 @@ export default function Page() {
     const tabMap: Record<string, 'financial' | 'plain' | 'buylist'> = {
       financialNote: 'financial', plainNote: 'plain', buyListItem: 'buylist',
     }
-    if (tabMap[item.type]) setNotesInitialTab(tabMap[item.type])
-    else setNotesInitialTab(undefined)
+    if (tabMap[item.type]) setNotesTab(tabMap[item.type])
     if (item.date) {
       const date = new Date(`${item.date}T00:00:00`)
       setViewPeriod(date.getMonth(), date.getFullYear())
@@ -479,7 +479,10 @@ export default function Page() {
                     onToggleBuyItem={toggleBuyListItem}
                     onEditBuyItem={editBuyListItem}
                     onDeleteBuyItem={removeBuyListItem}
-                    initialTab={notesInitialTab}
+                    tab={notesTab}
+                    onTabChange={setNotesTab}
+                    buyTab={buyTab}
+                    onBuyTabChange={setBuyTab}
                   />
                 )}
 
