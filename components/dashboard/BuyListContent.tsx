@@ -47,7 +47,7 @@ export function BuyListContent({ items, onAdd, onToggle, onEdit, onDelete }: {
   }
 
   return (
-    <div>
+    <div className='mt-8'>
       <div className="notes-tabs" style={{ marginBottom: 12 }}>
         <button className={buyTab === 'need' ? 'notes-tab active' : 'notes-tab'} onClick={() => setBuyTab('need')}>
           <ShoppingCart style={{ width: 13 }} /> Needs

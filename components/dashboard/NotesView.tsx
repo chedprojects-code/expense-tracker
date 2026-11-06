@@ -70,16 +70,18 @@ export function NotesView({
         <button className={tab === 'financial' ? 'notes-tab active' : 'notes-tab'} onClick={() => setTab('financial')}>
           <WalletCards style={{ width: 15 }} /> Financial
         </button>
-        <button className={tab === 'plain' ? 'notes-tab active' : 'notes-tab'} onClick={() => setTab('plain')}>
-          <StickyNote style={{ width: 15 }} /> Plain
-        </button>
+        
         <button className={tab === 'buylist' ? 'notes-tab active' : 'notes-tab'} onClick={() => setTab('buylist')}>
           <ShoppingCart style={{ width: 15 }} /> Buy List
+        </button>
+
+        <button className={tab === 'plain' ? 'notes-tab active' : 'notes-tab'} onClick={() => setTab('plain')} style={{ marginLeft: 'auto' }}>
+          <StickyNote style={{ width: 15 }} /> Plain
         </button>
       </div>
 
       {tab === 'financial' && (
-        <div>
+        <div className='mt-8'>
           <div className="notes-module-header">
             <h3>Financial notes</h3>
             <button className="primary-button small" onClick={onAdd}><Plus /> Add note</button>
@@ -124,7 +126,7 @@ export function NotesView({
       )}
 
       {tab === 'plain' && (
-        <div>
+        <div className='mt-8'>
           <div className="notes-module-header">
             <h3>Plain notes</h3>
             <button className="primary-button small" onClick={openAdd}><Plus /> Add note</button>
