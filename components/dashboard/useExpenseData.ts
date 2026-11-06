@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/auth/AuthProvider'
 import {
@@ -165,22 +165,54 @@ export function useExpenseData() {
 
   useEffect(() => { loadData() }, [loadData])
 
+  // ── Targeted refresh helpers ────────────────────────────────────────────────
+  const refreshNotes = useCallback(async () => { if (user) setNotes(await getNotes(user.id)) }, [user])
+  const refreshPlainNotes = useCallback(async () => { if (user) setPlainNotes(await getPlainNotes(user.id)) }, [user])
+  const refreshBuyList = useCallback(async () => { if (user) setBuyListItems(await getBuyListItems(user.id)) }, [user])
+  const refreshAccounts = useCallback(async () => {
+    if (!user) return
+    const a = await getAccounts(user.id)
+    setAccounts(a)
+    if (a.some((acc) => acc.annual_interest > 0)) {
+      await applyDailyInterest(a)
+      setAccounts(await getAccounts(user.id))
+    }
+  }, [user])
+  const refreshTransactions = useCallback(async () => { if (user) setTransactions(await getTransactions(user.id)) }, [user])
+  const refreshLenders = useCallback(async () => { if (user) setLenders(await getLenders(user.id)) }, [user])
+  const refreshFutureExpenses = useCallback(async () => { if (user) setFutureExpenses(await getFutureExpenses(user.id)) }, [user])
+
   // ── Realtime subscriptions ──────────────────────────────────────────────────
+  // Each table gets its own targeted refresh. Sort-order updates are debounced
+  // so N rapid drag events collapse into a single fetch.
+  const notesSortTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const plainSortTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const buySortTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   useEffect(() => {
     if (!user) return
     const supabase = createClient()
     const channel = supabase
       .channel('db-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: `user_id=eq.${user.id}` }, () => loadData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'accounts', filter: `user_id=eq.${user.id}` }, () => loadData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'notes', filter: `user_id=eq.${user.id}` }, () => loadData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'lenders', filter: `user_id=eq.${user.id}` }, () => loadData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'future_expenses', filter: `user_id=eq.${user.id}` }, () => loadData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'plain_notes', filter: `user_id=eq.${user.id}` }, () => loadData())
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'buy_list_items', filter: `user_id=eq.${user.id}` }, () => loadData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'transactions', filter: `user_id=eq.${user.id}` }, () => refreshTransactions())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'accounts', filter: `user_id=eq.${user.id}` }, () => refreshAccounts())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'notes', filter: `user_id=eq.${user.id}` }, () => {
+        if (notesSortTimer.current) clearTimeout(notesSortTimer.current)
+        notesSortTimer.current = setTimeout(() => refreshNotes(), 600)
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'lenders', filter: `user_id=eq.${user.id}` }, () => refreshLenders())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'future_expenses', filter: `user_id=eq.${user.id}` }, () => refreshFutureExpenses())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'plain_notes', filter: `user_id=eq.${user.id}` }, () => {
+        if (plainSortTimer.current) clearTimeout(plainSortTimer.current)
+        plainSortTimer.current = setTimeout(() => refreshPlainNotes(), 600)
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'buy_list_items', filter: `user_id=eq.${user.id}` }, () => {
+        if (buySortTimer.current) clearTimeout(buySortTimer.current)
+        buySortTimer.current = setTimeout(() => refreshBuyList(), 600)
+      })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [user, loadData])
+  }, [user, refreshTransactions, refreshAccounts, refreshNotes, refreshLenders, refreshFutureExpenses, refreshPlainNotes, refreshBuyList])
 
   // ── Derived values ──────────────────────────────────────────────────────────
   const stats = calcStats(transactions, viewMonth, viewYear)
@@ -278,7 +310,7 @@ export function useExpenseData() {
   const saveAccount = useCallback(async () => {
     if (!user || !isFormValid(accountDraft, ['name', 'balance'])) return
     try {
-      await upsertAccount({
+      const saved = await upsertAccount({
         id: editingAccount?.id ?? generateId(),
         user_id: user.id,
         name: accountDraft.name,
@@ -291,12 +323,14 @@ export function useExpenseData() {
         vault_hidden: editingAccount?.vault_hidden ?? false,
         last_interest_applied_at: editingAccount?.last_interest_applied_at ?? null,
       })
+      setAccounts((prev) =>
+        editingAccount ? prev.map((x) => x.id === saved.id ? saved : x) : [...prev, saved]
+      )
       closeAccount()
-      await loadData()
     } catch (err) {
       console.error('[saveAccount]', err)
     }
-  }, [accountDraft, editingAccount, user, closeAccount, loadData])
+  }, [accountDraft, editingAccount, user, closeAccount])
 
   const removeAccount = useCallback(async (id: string) => {
     try {
@@ -318,15 +352,17 @@ export function useExpenseData() {
     if (!user || !isFormValid(txDraft, ['amount'])) return
     try {
       if (editingTx) {
-        await updateTransaction(editingTx.id, {
+        const updates = {
           type: txDraft.type,
           amount: parseFloat(txDraft.amount),
           category: txDraft.category,
           description: txDraft.description,
           date: txDraft.date,
-        })
+        }
+        await updateTransaction(editingTx.id, updates)
+        setTransactions((prev) => prev.map((x) => x.id === editingTx.id ? { ...x, ...updates } : x))
       } else {
-        await insertTransaction({
+        const saved = await insertTransaction({
           user_id: user.id,
           type: txDraft.type,
           amount: parseFloat(txDraft.amount),
@@ -334,14 +370,14 @@ export function useExpenseData() {
           description: txDraft.description,
           date: txDraft.date,
         })
+        setTransactions((prev) => [saved, ...prev])
       }
       setShowTxDialog(false)
       setEditingTx(null)
-      await loadData()
     } catch (err) {
       console.error('[saveTx]', err)
     }
-  }, [txDraft, editingTx, user, loadData])
+  }, [txDraft, editingTx, user])
 
   const removeTx = useCallback(async (id: string) => {
     try {
@@ -356,35 +392,38 @@ export function useExpenseData() {
   const saveGoal = useCallback(async () => {
     if (!user || !isFormValid(goalDraft, ['title', 'current', 'target'])) return
     try {
-      await upsertSavingsGoal({
+      const updated: SavingsGoal = {
         id: goal?.id ?? generateId(),
         user_id: user.id,
         title: goalDraft.title,
         current_amount: parseFloat(goalDraft.current),
         target_amount: parseFloat(goalDraft.target),
-      })
-      await loadData()
+        updated_at: new Date().toISOString(),
+      }
+      await upsertSavingsGoal(updated)
+      setGoal(updated)
     } catch (err) {
       console.error('[saveGoal]', err)
     }
-  }, [goalDraft, goal, user, loadData])
+  }, [goalDraft, goal, user])
 
   // ── Profile ─────────────────────────────────────────────────────────────────
   const saveProfile = useCallback(async () => {
     if (!user || !isFormValid(profileDraft, ['name'])) return
     setSavingProfile(true)
     try {
-      await updateProfile(user.id, {
+      const updates = {
         name: profileDraft.name,
         initials: profileDraft.initials || profileDraft.name.slice(0, 2).toUpperCase(),
-      })
-      await loadData()
+      }
+      await updateProfile(user.id, updates)
+      setProfile((prev) => prev ? { ...prev, ...updates } : updates as typeof prev)
     } catch (err) {
       console.error('[saveProfile]', err)
     } finally {
       setSavingProfile(false)
     }
-  }, [profileDraft, user, loadData])
+  }, [profileDraft, user])
 
   // ── Lenders CRUD ────────────────────────────────────────────────────────────
   const openLender = useCallback((lender?: Lender) => {
@@ -401,19 +440,23 @@ export function useExpenseData() {
   const saveLender = useCallback(async () => {
     if (!user || !isFormValid(lenderDraft, ['name', 'amount'])) return
     try {
-      await upsertLender({
+      const saved: Lender = {
         id: editingLender?.id ?? generateId(),
         user_id: user.id,
         name: lenderDraft.name,
         amount: parseFloat(lenderDraft.amount),
         note: lenderDraft.note,
-      })
+        created_at: editingLender?.created_at ?? new Date().toISOString(),
+      }
+      await upsertLender(saved)
+      setLenders((prev) =>
+        editingLender ? prev.map((x) => x.id === saved.id ? saved : x) : [saved, ...prev]
+      )
       closeLender()
-      await loadData()
     } catch (err) {
       console.error('[saveLender]', err)
     }
-  }, [lenderDraft, editingLender, user, closeLender, loadData])
+  }, [lenderDraft, editingLender, user, closeLender])
 
   const removeLender = useCallback(async (id: string) => {
     try {
@@ -439,20 +482,24 @@ export function useExpenseData() {
   const saveFutureExpense = useCallback(async () => {
     if (!user || !isFormValid(futureExpenseDraft, ['title', 'amount', 'due_date'])) return
     try {
-      await upsertFutureExpense({
+      const saved: FutureExpense = {
         id: editingFutureExpense?.id ?? generateId(),
         user_id: user.id,
         title: futureExpenseDraft.title,
         amount: parseFloat(futureExpenseDraft.amount),
         due_date: futureExpenseDraft.due_date,
         category: futureExpenseDraft.category,
-      })
+        created_at: editingFutureExpense?.created_at ?? new Date().toISOString(),
+      }
+      await upsertFutureExpense(saved)
+      setFutureExpenses((prev) =>
+        editingFutureExpense ? prev.map((x) => x.id === saved.id ? saved : x) : [...prev, saved]
+      )
       closeFutureExpense()
-      await loadData()
     } catch (err) {
       console.error('[saveFutureExpense]', err)
     }
-  }, [futureExpenseDraft, editingFutureExpense, user, closeFutureExpense, loadData])
+  }, [futureExpenseDraft, editingFutureExpense, user, closeFutureExpense])
 
   const removeFutureExpense = useCallback(async (id: string) => {
     try {

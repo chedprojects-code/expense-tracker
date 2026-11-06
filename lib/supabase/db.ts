@@ -104,10 +104,11 @@ export async function getAccounts(userId: string): Promise<Account[]> {
   return data ?? []
 }
 
-export async function upsertAccount(account: Omit<Account, 'created_at'>) {
+export async function upsertAccount(account: Omit<Account, 'created_at'>): Promise<Account> {
   const supabase = createClient()
-  const { error } = await supabase.from('accounts').upsert(account)
+  const { data, error } = await supabase.from('accounts').upsert(account).select().single()
   throwOnSupabaseError(error)
+  return data
 }
 
 export async function applyDailyInterest(accounts: Account[]): Promise<void> {
@@ -153,10 +154,11 @@ export async function getTransactions(userId: string): Promise<Transaction[]> {
   return data ?? []
 }
 
-export async function insertTransaction(tx: Omit<Transaction, 'id' | 'created_at'>) {
+export async function insertTransaction(tx: Omit<Transaction, 'id' | 'created_at'>): Promise<Transaction> {
   const supabase = createClient()
-  const { error } = await supabase.from('transactions').insert(tx)
+  const { data, error } = await supabase.from('transactions').insert(tx).select().single()
   throwOnSupabaseError(error)
+  return data
 }
 
 export async function deleteTransaction(id: string) {
