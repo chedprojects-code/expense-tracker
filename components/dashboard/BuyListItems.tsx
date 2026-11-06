@@ -1,8 +1,9 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { CheckCircle2, Circle, Pencil, ShoppingCart, Trash2 } from 'lucide-react'
+import { CheckCircle2, Circle, GripVertical, Pencil, ShoppingCart, Trash2 } from 'lucide-react'
 import { fmt, type BuyListItem } from '@/lib/supabase/db'
+import { useDragSort } from '@/hooks/useDragSort'
 
 export function BuyListItems({
   items,
@@ -10,15 +11,18 @@ export function BuyListItems({
   onToggle,
   onEdit,
   onDelete,
+  onReorder,
 }: {
   items: BuyListItem[]
   category: 'need' | 'want'
   onToggle: (id: string, bought: boolean) => Promise<void>
   onEdit: (item: BuyListItem) => void
   onDelete: (id: string) => Promise<void>
+  onReorder: (reordered: BuyListItem[]) => void
 }) {
   const total = items.reduce((sum, i) => sum + (i.price ?? 0), 0)
   const boughtTotal = items.filter((i) => i.bought).reduce((sum, i) => sum + (i.price ?? 0), 0)
+  const { onDragStart, onDragOver, onDrop, onDragEnd, dragId } = useDragSort(items, onReorder)
 
   return (
     <>
@@ -51,9 +55,15 @@ export function BuyListItems({
             <motion.div
               layout key={item.id}
               initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
-              className={`buy-item glass-panel${item.bought ? ' bought' : ''}`}
+              className={`buy-item glass-panel${item.bought ? ' bought' : ''}${dragId.current === item.id ? ' dragging' : ''}`}
               id={`search-result-buyListItem-${item.id}`}
+              draggable
+              onDragStart={() => onDragStart(item.id)}
+              onDragOver={(e) => onDragOver(e, item.id)}
+              onDrop={onDrop}
+              onDragEnd={onDragEnd}
             >
+              <GripVertical style={{ width: 13, color: 'var(--muted)', cursor: 'grab', flexShrink: 0 }} />
               <button className="buy-check" onClick={() => onToggle(item.id, item.bought)}>
                 {item.bought
                   ? <CheckCircle2 style={{ width: 18, color: '#18ad99' }} />

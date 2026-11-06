@@ -8,11 +8,13 @@ export function WantsTab({
   onToggle,
   onEdit,
   onDelete,
+  onReorder,
 }: {
   items: BuyListItem[]
   onToggle: (id: string, bought: boolean) => Promise<void>
   onEdit: (item: BuyListItem) => void
   onDelete: (id: string) => Promise<void>
+  onReorder: (reordered: BuyListItem[]) => void
 }) {
   return (
     <BuyListItems
@@ -21,6 +23,7 @@ export function WantsTab({
       onToggle={onToggle}
       onEdit={onEdit}
       onDelete={onDelete}
+      onReorder={onReorder}
     />
   )
 }

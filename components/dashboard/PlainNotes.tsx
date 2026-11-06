@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Eye, FileText, Pencil, Plus, Save, StickyNote, Trash2, X } from 'lucide-react'
+import { Eye, FileText, GripVertical, Pencil, Plus, Save, StickyNote, Trash2, X } from 'lucide-react'
 import { type PlainNote } from '@/lib/supabase/db'
 import { GlassIcon } from './ui'
+import { useDragSort } from '@/hooks/useDragSort'
 
 const truncate = (str: string, max = 50) => str.length > max ? str.slice(0, max) + '…' : str
 
@@ -12,16 +13,19 @@ export function PlainNotes({
   plainNotes,
   onSavePlainNote,
   onDeletePlainNote,
+  onReorder,
 }: {
   plainNotes: PlainNote[]
   onSavePlainNote: (id: string | null, title: string, body: string) => Promise<void>
   onDeletePlainNote: (id: string) => Promise<void>
+  onReorder: (reordered: PlainNote[]) => void
 }) {
   const [showDialog, setShowDialog] = useState(false)
   const [editing, setEditing] = useState<PlainNote | null>(null)
   const [draftTitle, setDraftTitle] = useState('')
   const [draftBody, setDraftBody] = useState('')
   const [viewing, setViewing] = useState<PlainNote | null>(null)
+  const { onDragStart, onDragOver, onDrop, onDragEnd, dragId } = useDragSort(plainNotes, onReorder)
 
   const openAdd = () => { setEditing(null); setDraftTitle(''); setDraftBody(''); setShowDialog(true) }
   const openEdit = (note: PlainNote) => { setEditing(note); setDraftTitle(note.title); setDraftBody(note.body); setShowDialog(true) }
@@ -43,20 +47,25 @@ export function PlainNotes({
             <motion.article
               layout key={note.id}
               initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
-              className="glass-panel note-card plain-note-card"
-              style={{ cursor: 'pointer' }}
+              className={`glass-panel note-card plain-note-card${dragId.current === note.id ? ' dragging' : ''}`}
+              style={{ cursor: 'grab' }}
               id={`search-result-plainNote-${note.id}`}
-              onClick={() => setViewing(note)}
+              draggable
+              onDragStart={() => onDragStart(note.id)}
+              onDragOver={(e) => onDragOver(e, note.id)}
+              onDrop={onDrop}
+              onDragEnd={onDragEnd}
             >
               <div className="note-card-top">
                 <GlassIcon tone="violet"><FileText /></GlassIcon>
                 <span className="note-tag" style={{ background: '#e7e4ff', color: '#7168db' }}>Note</span>
                 <div className="note-actions" onClick={(e) => e.stopPropagation()}>
+                  <GripVertical style={{ width: 13, color: 'var(--muted)', cursor: 'grab' }} />
                   <button onClick={() => openEdit(note)}><Pencil /></button>
                   <button onClick={() => onDeletePlainNote(note.id)}><Trash2 /></button>
                 </div>
               </div>
-              <h3>{note.title}</h3>
+              <h3 style={{ cursor: 'pointer' }} onClick={() => setViewing(note)}>{note.title}</h3>
               {note.body && (
                 <p className="plain-note-body" style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--muted)', lineHeight: 1.5 }}>
                   {truncate(note.body)}

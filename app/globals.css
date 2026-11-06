@@ -458,3 +458,11 @@ button { border:0; font:inherit; color:inherit; cursor:pointer; }
 .settings-signout{display:flex;align-items:center;justify-content:center;gap:8px;width:100%;margin-top:16px;padding:12px;border:1px solid rgba(216,120,161,.3);border-radius:13px;background:rgba(216,120,161,.1);color:#c76391;font-size:12px;font-weight:700}
 [id^="search-result-"]{scroll-margin:20px}
 [id^="search-result-"]:target{outline:2px solid rgba(113,104,219,.55);outline-offset:3px}
+
+/* ── Drag and drop ── */
+.note-card.dragging,
+.buy-item.dragging {
+  opacity: 0.45;
+  outline: 2px dashed var(--accent, #7168db);
+  outline-offset: 2px;
+}

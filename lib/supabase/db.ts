@@ -43,6 +43,7 @@ export type Note = {
   category: string
   updated_at: string
   created_at: string
+  sort_order: number
 }
 
 export type PlainNote = {
@@ -52,6 +53,7 @@ export type PlainNote = {
   body: string
   created_at: string
   updated_at: string
+  sort_order: number
 }
 
 export type SavingsGoal = {
@@ -294,9 +296,16 @@ export async function getNotes(userId: string): Promise<Note[]> {
     .from('notes')
     .select('*')
     .eq('user_id', userId)
-    .order('created_at', { ascending: false })
+    .order('sort_order', { ascending: true })
   throwOnSupabaseError(error)
   return data ?? []
+}
+
+export async function updateNotesSortOrder(items: { id: string; sort_order: number }[]) {
+  const supabase = createClient()
+  await Promise.all(items.map(({ id, sort_order }) =>
+    supabase.from('notes').update({ sort_order }).eq('id', id)
+  ))
 }
 
 export async function upsertNote(note: Omit<Note, 'created_at'>): Promise<Note> {
@@ -313,9 +322,16 @@ export async function getPlainNotes(userId: string): Promise<PlainNote[]> {
     .from('plain_notes')
     .select('*')
     .eq('user_id', userId)
-    .order('created_at', { ascending: false })
+    .order('sort_order', { ascending: true })
   throwOnSupabaseError(error)
   return data ?? []
+}
+
+export async function updatePlainNotesSortOrder(items: { id: string; sort_order: number }[]) {
+  const supabase = createClient()
+  await Promise.all(items.map(({ id, sort_order }) =>
+    supabase.from('plain_notes').update({ sort_order }).eq('id', id)
+  ))
 }
 
 export async function upsertPlainNote(note: Omit<PlainNote, 'created_at'>): Promise<PlainNote> {
@@ -438,13 +454,21 @@ export type BuyListItem = {
   category: 'need' | 'want'
   bought: boolean
   created_at: string
+  sort_order: number
 }
 
 export async function getBuyListItems(userId: string): Promise<BuyListItem[]> {
   const supabase = createClient()
-  const { data, error } = await supabase.from('buy_list_items').select('*').eq('user_id', userId).order('created_at', { ascending: false })
+  const { data, error } = await supabase.from('buy_list_items').select('*').eq('user_id', userId).order('sort_order', { ascending: true })
   throwOnSupabaseError(error)
   return data ?? []
+}
+
+export async function updateBuyListSortOrder(items: { id: string; sort_order: number }[]) {
+  const supabase = createClient()
+  await Promise.all(items.map(({ id, sort_order }) =>
+    supabase.from('buy_list_items').update({ sort_order }).eq('id', id)
+  ))
 }
 
 export async function insertBuyListItem(item: Omit<BuyListItem, 'id' | 'created_at'>): Promise<BuyListItem> {

@@ -32,7 +32,7 @@ export default function Page() {
     showNotifications, setShowNotifications, showHelp, setShowHelp,
     showCategoryDetails, setShowCategoryDetails, showSpendingFlow, setShowSpendingFlow,
     showAdd, setShowAdd,
-    showNoteDialog, noteDraft, setNoteDraft, editingNote, openNote, closeNote, saveNote, removeNote,
+    showNoteDialog, noteDraft, setNoteDraft, editingNote, openNote, closeNote, saveNote, removeNote, reorderNotes,
     showAccountDialog, accountDraft, setAccountDraft, editingAccount, openAccount, closeAccount, saveAccount, removeAccount,
     showTxDialog, setShowTxDialog, txDraft, setTxDraft, editingTx, openTx, saveTx, removeTx,
     goalDraft, setGoalDraft, saveGoal, profileDraft, setProfileDraft, savingProfile, saveProfile,
@@ -48,8 +48,8 @@ export default function Page() {
     futureExpenses, totalFutureExpenses,
     showFutureExpenseDialog, futureExpenseDraft, setFutureExpenseDraft, editingFutureExpense,
     openFutureExpense, closeFutureExpense, saveFutureExpense, removeFutureExpense,
-    plainNotes, savePlainNote, removePlainNote,
-    buyListItems, addBuyListItem, toggleBuyListItem, editBuyListItem, removeBuyListItem,
+    plainNotes, savePlainNote, removePlainNote, reorderPlainNotes,
+    buyListItems, addBuyListItem, toggleBuyListItem, editBuyListItem, removeBuyListItem, reorderBuyListItems,
     vaultAccounts, vaultTotal, hiddenVaultTotal, toggleVaultHidden,
     searchItems,
   } = useExpenseData()
@@ -471,14 +471,17 @@ export default function Page() {
                     onAdd={() => openNote()}
                     onEdit={openNote}
                     onDelete={removeNote}
+                    onReorderNotes={reorderNotes}
                     plainNotes={plainNotes}
                     onSavePlainNote={savePlainNote}
                     onDeletePlainNote={removePlainNote}
+                    onReorderPlainNotes={reorderPlainNotes}
                     buyListItems={buyListItems}
                     onAddBuyItem={addBuyListItem}
                     onToggleBuyItem={toggleBuyListItem}
                     onEditBuyItem={editBuyListItem}
                     onDeleteBuyItem={removeBuyListItem}
+                    onReorderBuyItems={reorderBuyListItems}
                     tab={notesTab}
                     onTabChange={setNotesTab}
                     buyTab={buyTab}

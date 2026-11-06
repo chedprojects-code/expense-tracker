@@ -1,22 +1,27 @@
 'use client'
 
+import { useRef } from 'react'
 import { motion } from 'framer-motion'
-import { Calendar, Pencil, Plus, Trash2, WalletCards } from 'lucide-react'
+import { Calendar, GripVertical, Pencil, Plus, Trash2, WalletCards } from 'lucide-react'
 import { fmt, type Note } from '@/lib/supabase/db'
 import { GlassIcon } from './ui'
+import { useDragSort } from '@/hooks/useDragSort'
 
 export function FinancialNotes({
   notes,
   onAdd,
   onEdit,
   onDelete,
+  onReorder,
 }: {
   notes: Note[]
   onAdd: () => void
   onEdit: (note: Note) => void
   onDelete: (id: string) => void
+  onReorder: (reordered: Note[]) => void
 }) {
   const notesTotal = notes.reduce((sum, note) => sum + note.amount, 0)
+  const { onDragStart, onDragOver, onDrop, onDragEnd, dragId } = useDragSort(notes, onReorder)
 
   return (
     <div className='mt-8'>
@@ -32,11 +37,22 @@ export function FinancialNotes({
           </div>
         )}
         {notes.map((note) => (
-          <motion.article layout key={note.id} className="glass-panel note-card" id={`search-result-financialNote-${note.id}`}>
+          <motion.article
+            layout key={note.id}
+            className={`glass-panel note-card${dragId.current === note.id ? ' dragging' : ''}`}
+            id={`search-result-financialNote-${note.id}`}
+            draggable
+            onDragStart={() => onDragStart(note.id)}
+            onDragOver={(e) => onDragOver(e, note.id)}
+            onDrop={onDrop}
+            onDragEnd={onDragEnd}
+            style={{ cursor: 'grab' }}
+          >
             <div className="note-card-top">
               <GlassIcon tone={note.category === 'Pay' ? 'pink' : 'teal'}><Calendar /></GlassIcon>
               <span className={`note-tag ${note.category.toLowerCase()}`}>{note.category}</span>
               <div className="note-actions">
+                <GripVertical style={{ width: 13, color: 'var(--muted)', cursor: 'grab' }} />
                 <button onClick={() => onEdit(note)}><Pencil /></button>
                 <button onClick={() => onDelete(note.id)}><Trash2 /></button>
               </div>

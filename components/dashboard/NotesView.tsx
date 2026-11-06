@@ -12,14 +12,17 @@ export function NotesView({
   onAdd,
   onEdit,
   onDelete,
+  onReorderNotes,
   plainNotes,
   onSavePlainNote,
   onDeletePlainNote,
+  onReorderPlainNotes,
   buyListItems,
   onAddBuyItem,
   onToggleBuyItem,
   onEditBuyItem,
   onDeleteBuyItem,
+  onReorderBuyItems,
   tab,
   onTabChange,
   buyTab,
@@ -29,14 +32,17 @@ export function NotesView({
   onAdd: () => void
   onEdit: (note: Note) => void
   onDelete: (id: string) => void
+  onReorderNotes: (reordered: Note[]) => void
   plainNotes: PlainNote[]
   onSavePlainNote: (id: string | null, title: string, body: string) => Promise<void>
   onDeletePlainNote: (id: string) => Promise<void>
+  onReorderPlainNotes: (reordered: PlainNote[]) => void
   buyListItems: BuyListItem[]
   onAddBuyItem: (title: string, category: 'need' | 'want', price: number | null) => Promise<void>
   onToggleBuyItem: (id: string, bought: boolean) => Promise<void>
   onEditBuyItem: (id: string, title: string, price: number | null, category: 'need' | 'want') => Promise<void>
   onDeleteBuyItem: (id: string) => Promise<void>
+  onReorderBuyItems: (reordered: BuyListItem[]) => void
   tab: 'financial' | 'plain' | 'buylist'
   onTabChange: (tab: 'financial' | 'plain' | 'buylist') => void
   buyTab: 'need' | 'want'
@@ -59,11 +65,11 @@ export function NotesView({
       </div>
 
       {tab === 'financial' && (
-        <FinancialNotes notes={notes} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} />
+        <FinancialNotes notes={notes} onAdd={onAdd} onEdit={onEdit} onDelete={onDelete} onReorder={onReorderNotes} />
       )}
 
       {tab === 'plain' && (
-        <PlainNotes plainNotes={plainNotes} onSavePlainNote={onSavePlainNote} onDeletePlainNote={onDeletePlainNote} />
+        <PlainNotes plainNotes={plainNotes} onSavePlainNote={onSavePlainNote} onDeletePlainNote={onDeletePlainNote} onReorder={onReorderPlainNotes} />
       )}
 
       {tab === 'buylist' && (
@@ -73,6 +79,7 @@ export function NotesView({
           onToggle={onToggleBuyItem}
           onEdit={onEditBuyItem}
           onDelete={onDeleteBuyItem}
+          onReorder={onReorderBuyItems}
           buyTab={buyTab}
           onBuyTabChange={onBuyTabChange}
         />

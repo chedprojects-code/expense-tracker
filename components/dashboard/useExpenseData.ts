@@ -13,6 +13,7 @@ import {
   getBuyListItems, insertBuyListItem, updateBuyListItem, deleteBuyListItem,
   calcStats, buildChartPaths,
   applyDailyInterest,
+  updateNotesSortOrder, updatePlainNotesSortOrder, updateBuyListSortOrder,
   type Account, type Note, type SavingsGoal, type Transaction, type Notification, type Lender, type FutureExpense, type PlainNote, type BuyListItem,
 } from '@/lib/supabase/db'
 import {
@@ -523,6 +524,22 @@ export function useExpenseData() {
     }
   }, [])
 
+  // ── Reorder ─────────────────────────────────────────────────────────────────
+  const reorderNotes = useCallback(async (reordered: Note[]) => {
+    setNotes(reordered)
+    await updateNotesSortOrder(reordered.map((n, i) => ({ id: n.id, sort_order: i })))
+  }, [])
+
+  const reorderPlainNotes = useCallback(async (reordered: PlainNote[]) => {
+    setPlainNotes(reordered)
+    await updatePlainNotesSortOrder(reordered.map((n, i) => ({ id: n.id, sort_order: i })))
+  }, [])
+
+  const reorderBuyListItems = useCallback(async (reordered: BuyListItem[]) => {
+    setBuyListItems(reordered)
+    await updateBuyListSortOrder(reordered.map((n, i) => ({ id: n.id, sort_order: i })))
+  }, [])
+
   // ── Search items ────────────────────────────────────────────────────────────
   const searchItems: DashboardSearchItem[] = [
     ...accounts.map((a) => ({ id: a.id, type: 'account' as const, title: a.name, detail: a.purpose, searchText: `${a.balance} ${a.symbol}`, section: a.is_vault ? 'Vault' : 'Home' })),
@@ -574,9 +591,9 @@ export function useExpenseData() {
     showCategoryDetails, setShowCategoryDetails,
     showSpendingFlow, setShowSpendingFlow,
     showAdd, setShowAdd,
-    // note dialog
+    // notes
     showNoteDialog, noteDraft, setNoteDraft, editingNote,
-    openNote, closeNote, saveNote, removeNote,
+    openNote, closeNote, saveNote, removeNote, reorderNotes,
     // account dialog
     showAccountDialog, accountDraft, setAccountDraft, editingAccount,
     openAccount, closeAccount, saveAccount, removeAccount,
@@ -608,9 +625,9 @@ export function useExpenseData() {
     showFutureExpenseDialog, futureExpenseDraft, setFutureExpenseDraft, editingFutureExpense,
     openFutureExpense, closeFutureExpense, saveFutureExpense, removeFutureExpense,
     // plain notes
-    plainNotes, savePlainNote, removePlainNote,
+    plainNotes, savePlainNote, removePlainNote, reorderPlainNotes,
     // buy list
-    buyListItems, addBuyListItem, toggleBuyListItem, editBuyListItem, removeBuyListItem,
+    buyListItems, addBuyListItem, toggleBuyListItem, editBuyListItem, removeBuyListItem, reorderBuyListItems,
     // vault
     vaultAccounts, vaultTotal, hiddenVaultTotal, toggleVaultHidden,
     // search

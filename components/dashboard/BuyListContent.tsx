@@ -7,7 +7,7 @@ import { type BuyListItem } from '@/lib/supabase/db'
 import { NeedsTab } from './NeedsTab'
 import { WantsTab } from './WantsTab'
 
-export function BuyListContent({ items, onAdd, onToggle, onEdit, onDelete, buyTab, onBuyTabChange }: {
+export function BuyListContent({ items, onAdd, onToggle, onEdit, onDelete, buyTab, onBuyTabChange, onReorder }: {
   items: BuyListItem[]
   onAdd: (title: string, category: 'need' | 'want', price: number | null) => Promise<void>
   onToggle: (id: string, bought: boolean) => Promise<void>
@@ -15,6 +15,7 @@ export function BuyListContent({ items, onAdd, onToggle, onEdit, onDelete, buyTa
   onDelete: (id: string) => Promise<void>
   buyTab: 'need' | 'want'
   onBuyTabChange: (tab: 'need' | 'want') => void
+  onReorder: (reordered: BuyListItem[]) => void
 }) {
   const [title, setTitle] = useState('')
   const [price, setPrice] = useState('')
@@ -74,8 +75,8 @@ export function BuyListContent({ items, onAdd, onToggle, onEdit, onDelete, buyTa
       </div>
 
       {buyTab === 'need'
-        ? <NeedsTab items={items} onToggle={onToggle} onEdit={openEdit} onDelete={onDelete} />
-        : <WantsTab items={items} onToggle={onToggle} onEdit={openEdit} onDelete={onDelete} />
+        ? <NeedsTab items={items} onToggle={onToggle} onEdit={openEdit} onDelete={onDelete} onReorder={onReorder} />
+        : <WantsTab items={items} onToggle={onToggle} onEdit={openEdit} onDelete={onDelete} onReorder={onReorder} />
       }
 
       <AnimatePresence>
