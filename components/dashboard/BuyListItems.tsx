@@ -74,7 +74,7 @@ export function BuyListItems({
                 {item.price != null && <span className="buy-price">{fmt(item.price)}</span>}
               </div>
               <div style={{ display: 'flex', gap: 4 }}>
-                <button className="buy-delete" onClick={() => onEdit(item)}><Pencil style={{ width: 12 }} /></button>
+                {!item.bought && <button className="buy-delete" onClick={() => onEdit(item)} aria-label={`Edit ${item.title}`}><Pencil style={{ width: 12 }} /></button>}
                 <button className="buy-delete" onClick={() => onDelete(item.id)}><Trash2 style={{ width: 13 }} /></button>
               </div>
             </motion.div>

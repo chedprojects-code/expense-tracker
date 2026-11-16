@@ -3,8 +3,10 @@
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { fmt } from '@/lib/supabase/db'
+import { formatLocalDate, parseLocalDate } from '@/lib/date-utils'
 import {
   NoteDialog, AccountDialog, TxDialog, LenderDialog, FutureExpenseDialog,
+  PurchaseDialog, FutureExpensePaymentDialog, RecurringDialog,
 } from '@/components/dashboard/dialogs'
 import {
   NotificationsPanel, CategoryDetailsPanel, SpendingFlowPanel, HelpPanel,
@@ -17,6 +19,7 @@ import { NotesView } from '@/components/dashboard/NotesView'
 import { SettingsView } from '@/components/dashboard/SettingsView'
 import { DashboardBottomNavigation, DashboardHeader, QuickAddSheet } from '@/components/dashboard/navigation'
 import { VaultView } from '@/components/vault/VaultView'
+import { RecurringPayments } from '@/components/dashboard/RecurringPayments'
 import type { DashboardSearchItem } from '@/components/dashboard/types'
 import {
   ArrowDownLeft, ArrowUpRight, ChevronLeft, ChevronRight, ChevronDown,
@@ -27,7 +30,7 @@ import {
 export default function Page() {
   const {
     user, authLoading, signOut,
-    active, setActive, dark, setDark, showBalance, setShowBalance, dataLoading,
+    active, setActive, dark, setDark, showBalance, setShowBalance, dataLoading, actionError, setActionError,
     viewMonth, viewYear, viewPeriodLabel, showMonthPicker, setShowMonthPicker, shiftMonth, pickMonth, setViewPeriod,
     showNotifications, setShowNotifications, showHelp, setShowHelp,
     showCategoryDetails, setShowCategoryDetails, showSpendingFlow, setShowSpendingFlow,
@@ -50,6 +53,11 @@ export default function Page() {
     openFutureExpense, closeFutureExpense, saveFutureExpense, removeFutureExpense,
     plainNotes, savePlainNote, removePlainNote, reorderPlainNotes,
     buyListItems, addBuyListItem, toggleBuyListItem, editBuyListItem, removeBuyListItem, reorderBuyListItems,
+    purchaseItem, setPurchaseItem, saveBuyListPurchase,
+    futureExpenseToPay, setFutureExpenseToPay, settleFutureExpenseAction,
+    recurringTransactions, showRecurringDialog, editingRecurring, recurringDraft, setRecurringDraft,
+    openRecurring, closeRecurring, saveRecurring, removeRecurring, recordRecurring,
+    monthlyBudgets, saveBudget, removeBudget, preferredAccountId,
     vaultAccounts, vaultTotal, hiddenVaultTotal, toggleVaultHidden,
     searchItems,
   } = useExpenseData()
@@ -68,7 +76,7 @@ export default function Page() {
     }
     if (tabMap[item.type]) setNotesTab(tabMap[item.type])
     if (item.date) {
-      const date = new Date(`${item.date}T00:00:00`)
+      const date = parseLocalDate(item.date)
       setViewPeriod(date.getMonth(), date.getFullYear())
     }
     setActive(item.section ?? sectionMap[item.type] ?? 'Home')
@@ -100,6 +108,12 @@ export default function Page() {
 
         {/* ── Content ── */}
         <div className="content-scroll">
+          {actionError && (
+            <div role="alert" className="glass-panel" style={{ display: 'flex', justifyContent: 'space-between', gap: 8, alignItems: 'center', padding: '10px 12px', borderRadius: 14, marginBottom: 10, color: '#b33', fontSize: 10 }}>
+              <span>{actionError}</span>
+              <button onClick={() => setActionError('')} aria-label="Dismiss error" style={{ background: 'none', color: 'inherit', fontWeight: 700 }}>Dismiss</button>
+            </div>
+          )}
           {dataLoading ? (
             <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
               <Loader2 className="animate-spin" style={{ width: 28, height: 28, color: 'var(--muted)' }} />
@@ -311,17 +325,37 @@ export default function Page() {
                           </div>
                           <div className="lender-info">
                             <p>{fe.title}</p>
-                            <small>{fe.category} · Due {fe.due_date}</small>
+                            <small>{fe.category} · {fe.paid_at
+                              ? `Paid ${new Date(fe.paid_at).toLocaleDateString()}`
+                              : fe.due_date < formatLocalDate()
+                                ? `Overdue since ${fe.due_date}`
+                                : `Due ${fe.due_date}`}</small>
                           </div>
                           <strong className="lender-amount" style={{ color: '#d878a1' }}>{fmt(fe.amount)}</strong>
                           <div className="lender-actions">
-                            <button onClick={() => openFutureExpense(fe)}><Pencil style={{ width: 11 }} /></button>
-                            <button onClick={() => removeFutureExpense(fe.id)}><Trash2 style={{ width: 11 }} /></button>
+                            {fe.paid_at ? (
+                              <small style={{ color: '#18ad99', fontSize: 9, fontWeight: 700 }}>PAID</small>
+                            ) : (
+                              <>
+                                <button onClick={() => setFutureExpenseToPay(fe)} title="Record payment" aria-label={`Pay ${fe.title}`} style={{ color: '#18ad99', fontSize: 9, fontWeight: 700, width: 'auto', padding: '0 5px' }}>Pay</button>
+                                <button onClick={() => openFutureExpense(fe)} aria-label={`Edit ${fe.title}`}><Pencil style={{ width: 11 }} /></button>
+                                <button onClick={() => removeFutureExpense(fe.id)} aria-label={`Delete ${fe.title}`}><Trash2 style={{ width: 11 }} /></button>
+                              </>
+                            )}
                           </div>
                         </motion.div>
                       ))}
                     </div>
                   )}
+
+                  <RecurringPayments
+                    rules={recurringTransactions}
+                    accounts={accounts}
+                    onAdd={() => openRecurring()}
+                    onEdit={openRecurring}
+                    onDelete={removeRecurring}
+                    onRecord={recordRecurring}
+                  />
 
                   {/* Lenders */}
                   <SectionTitle
@@ -491,7 +525,16 @@ export default function Page() {
 
                 {/* ══ INSIGHTS ══ */}
                 {active === 'Insights' && (
-                  <InsightsView stats={stats} transactions={transactions} month={viewMonth} year={viewYear} />
+                  <InsightsView
+                    stats={stats}
+                    transactions={transactions}
+                    accounts={accounts}
+                    month={viewMonth}
+                    year={viewYear}
+                    budgets={monthlyBudgets}
+                    onSaveBudget={saveBudget}
+                    onDeleteBudget={removeBudget}
+                  />
                 )}
 
                 {/* ══ SETTINGS ══ */}
@@ -528,6 +571,7 @@ export default function Page() {
           onClose={() => setShowAdd(false)}
           onIncome={() => { setShowAdd(false); openTx('income') }}
           onExpense={() => { setShowAdd(false); openTx('expense') }}
+          onTransfer={() => { setShowAdd(false); openTx('transfer') }}
           onNote={() => { setShowAdd(false); setActive('Notes'); openNote() }}
           onAccount={() => { setShowAdd(false); openAccount() }}
           onLender={() => { setShowAdd(false); openLender() }}
@@ -538,14 +582,41 @@ export default function Page() {
         {/* ── Dialogs ── */}
         <NoteDialog open={showNoteDialog} draft={noteDraft} setDraft={setNoteDraft} onSave={saveNote} onClose={closeNote} isEditing={editingNote !== null} />
         <AccountDialog open={showAccountDialog} draft={accountDraft} setDraft={setAccountDraft} onSave={saveAccount} onClose={closeAccount} isEditing={editingAccount !== null} />
-        <TxDialog open={showTxDialog} draft={txDraft} setDraft={setTxDraft} onSave={saveTx} onClose={() => { setShowTxDialog(false) }} isEditing={editingTx !== null} />
+        <TxDialog open={showTxDialog} draft={txDraft} setDraft={setTxDraft} onSave={saveTx} onClose={() => { setShowTxDialog(false) }} isEditing={editingTx !== null} accounts={accounts} />
         <FutureExpenseDialog open={showFutureExpenseDialog} draft={futureExpenseDraft} setDraft={setFutureExpenseDraft} onSave={saveFutureExpense} onClose={closeFutureExpense} isEditing={editingFutureExpense !== null} />
         <LenderDialog open={showLenderDialog} draft={lenderDraft} setDraft={setLenderDraft} onSave={saveLender} onClose={closeLender} isEditing={editingLender !== null} />
+        <PurchaseDialog
+          open={purchaseItem !== null}
+          item={purchaseItem}
+          accounts={accounts}
+          initialAccountId={preferredAccountId || accounts[0]?.id || ''}
+          onSave={saveBuyListPurchase}
+          onClose={() => setPurchaseItem(null)}
+        />
+        <FutureExpensePaymentDialog
+          open={futureExpenseToPay !== null}
+          item={futureExpenseToPay}
+          accounts={accounts}
+          initialAccountId={preferredAccountId || accounts[0]?.id || ''}
+          onSave={(amount, accountId) => futureExpenseToPay
+            ? settleFutureExpenseAction(futureExpenseToPay.id, amount, accountId)
+            : Promise.resolve()}
+          onClose={() => setFutureExpenseToPay(null)}
+        />
+        <RecurringDialog
+          open={showRecurringDialog}
+          draft={recurringDraft}
+          setDraft={setRecurringDraft}
+          accounts={accounts}
+          onSave={saveRecurring}
+          onClose={closeRecurring}
+          isEditing={editingRecurring !== null}
+        />
 
         {/* ── Panels ── */}
         <NotificationsPanel open={showNotifications} onClose={() => setShowNotifications(false)} notifications={notifications} onMarkRead={handleMarkRead} />
         <CategoryDetailsPanel open={showCategoryDetails} onClose={() => setShowCategoryDetails(false)} categories={stats.allCategories} transactions={transactions} month={viewMonth} year={viewYear} />
-        <SpendingFlowPanel open={showSpendingFlow} onClose={() => setShowSpendingFlow(false)} transactions={transactions} month={viewMonth} year={viewYear} onEdit={(tx) => { setShowSpendingFlow(false); openTx(tx.type, tx) }} onDelete={removeTx} />
+        <SpendingFlowPanel open={showSpendingFlow} onClose={() => setShowSpendingFlow(false)} transactions={transactions} accounts={accounts} month={viewMonth} year={viewYear} onEdit={(tx) => { setShowSpendingFlow(false); openTx(tx.type, tx) }} onDelete={removeTx} />
         <HelpPanel open={showHelp} onClose={() => setShowHelp(false)} />
       </section>
     </main>

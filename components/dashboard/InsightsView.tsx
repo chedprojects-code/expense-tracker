@@ -2,17 +2,24 @@
 
 import { motion } from 'framer-motion'
 import { Sparkles } from 'lucide-react'
-import { calcStats, fmt, type Transaction } from '@/lib/supabase/db'
+import { calcStats, fmt, type Account, type Transaction } from '@/lib/supabase/db'
 import { GlassIcon, SectionTitle, toneColors } from './ui'
+import { BudgetManager } from './BudgetManager'
+import type { MonthlyBudget } from '@/lib/supabase/db'
+import { parseLocalDate } from '@/lib/date-utils'
 
-export function InsightsView({ stats, transactions, month, year }: {
+export function InsightsView({ stats, transactions, accounts, month, year, budgets, onSaveBudget, onDeleteBudget }: {
   stats: ReturnType<typeof calcStats>
   transactions: Transaction[]
+  accounts: Account[]
   month: number
   year: number
+  budgets: MonthlyBudget[]
+  onSaveBudget: (category: string, amount: number) => Promise<void>
+  onDeleteBudget: (id: string) => Promise<void>
 }) {
   const monthTxns = transactions.filter((transaction) => {
-    const date = new Date(transaction.date)
+    const date = parseLocalDate(transaction.date)
     return date.getMonth() === month && date.getFullYear() === year
   })
   const topExpense = stats.allCategories[0]
@@ -72,16 +79,28 @@ export function InsightsView({ stats, transactions, month, year }: {
               <div key={tx.id} id={`search-result-transaction-${tx.id}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
                 <div>
                   <p style={{ margin: 0, fontSize: 12, fontWeight: 600 }}>{tx.description || tx.category}</p>
-                  <small style={{ color: 'var(--muted)', fontSize: 10 }}>{tx.category} · {tx.date}</small>
+                  <small style={{ color: 'var(--muted)', fontSize: 10 }}>
+                    {tx.type === 'transfer'
+                      ? `${accounts.find((account) => account.id === tx.account_id)?.name ?? 'Account'} → ${accounts.find((account) => account.id === tx.transfer_to_account_id)?.name ?? 'Account'}`
+                      : `${tx.category}${tx.account_id ? ` · ${accounts.find((account) => account.id === tx.account_id)?.name ?? 'Account'}` : ''}`} · {tx.date}
+                  </small>
                 </div>
-                <strong style={{ fontSize: 13, color: tx.type === 'income' ? '#18ad99' : '#d878a1' }}>
-                  {tx.type === 'income' ? '+' : '-'}{fmt(tx.amount)}
+                <strong style={{ fontSize: 13, color: tx.type === 'income' ? '#18ad99' : tx.type === 'expense' ? '#d878a1' : '#7168db' }}>
+                  {tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : '↔ '}{fmt(tx.amount)}
                 </strong>
               </div>
             ))
           }
         </div>
       </div>
+      <BudgetManager
+        budgets={budgets}
+        transactions={transactions}
+        month={month}
+        year={year}
+        onSave={onSaveBudget}
+        onDelete={onDeleteBudget}
+      />
     </section>
   )
 }

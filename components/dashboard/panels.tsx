@@ -2,7 +2,8 @@
 import { motion, AnimatePresence } from 'framer-motion'
 import { Bell, CheckCheck, ChevronRight, CircleHelp, Pencil, Trash2, X } from 'lucide-react'
 import { toneColors, GlassIcon } from './ui'
-import { fmt, type Notification, type Transaction } from '@/lib/supabase/db'
+import { fmt, type Account, type Notification, type Transaction } from '@/lib/supabase/db'
+import { parseLocalDate } from '@/lib/date-utils'
 
 const slide = {
   initial: { x: '100%' },
@@ -83,7 +84,7 @@ export function CategoryDetailsPanel({ open, onClose, categories, transactions, 
   year: number
 }) {
   const expenseTxns = transactions.filter((t) => {
-    const d = new Date(t.date)
+    const d = parseLocalDate(t.date)
     return t.type === 'expense' && d.getMonth() === month && d.getFullYear() === year
   })
 
@@ -125,18 +126,19 @@ export function CategoryDetailsPanel({ open, onClose, categories, transactions, 
 }
 
 // ─── Spending Flow Details Panel ──────────────────────────────────────────────
-export function SpendingFlowPanel({ open, onClose, transactions, month, year, onEdit, onDelete }: {
+export function SpendingFlowPanel({ open, onClose, transactions, accounts, month, year, onEdit, onDelete }: {
   open: boolean
   onClose: () => void
   transactions: Transaction[]
+  accounts: Account[]
   month: number
   year: number
   onEdit: (tx: Transaction) => void
   onDelete: (id: string) => void
 }) {
   const monthTxns = transactions
-    .filter((t) => { const d = new Date(t.date); return d.getMonth() === month && d.getFullYear() === year })
-    .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+    .filter((t) => { const d = parseLocalDate(t.date); return d.getMonth() === month && d.getFullYear() === year })
+    .sort((a, b) => parseLocalDate(b.date).getTime() - parseLocalDate(a.date).getTime())
 
   const income = monthTxns.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0)
   const expenses = monthTxns.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0)
@@ -160,14 +162,18 @@ export function SpendingFlowPanel({ open, onClose, transactions, month, year, on
           {monthTxns.map((t) => (
             <div key={t.id} className="glass-panel" style={{ padding: '10px 14px', borderRadius: 14, display: 'flex', alignItems: 'center', gap: 10 }}>
               <div style={{ width: 32, height: 32, borderRadius: 11, display: 'grid', placeItems: 'center', background: t.type === 'income' ? '#d7f8f0' : '#fae3f0', color: t.type === 'income' ? '#18ad99' : '#d878a1', fontSize: 14 }}>
-                {t.type === 'income' ? '↓' : '↑'}
+                {t.type === 'income' ? '↓' : t.type === 'expense' ? '↑' : '↔'}
               </div>
               <div style={{ flex: 1 }}>
                 <p style={{ margin: 0, fontSize: 12, fontWeight: 600 }}>{t.description || t.category}</p>
-                <p style={{ margin: 0, fontSize: 9, color: 'var(--muted)' }}>{t.category} · {t.date}</p>
+                <p style={{ margin: 0, fontSize: 9, color: 'var(--muted)' }}>
+                  {t.type === 'transfer'
+                    ? `${accounts.find((account) => account.id === t.account_id)?.name ?? 'Account'} → ${accounts.find((account) => account.id === t.transfer_to_account_id)?.name ?? 'Account'}`
+                    : `${t.category}${t.account_id ? ` · ${accounts.find((account) => account.id === t.account_id)?.name ?? 'Account'}` : ''}`} · {t.date}
+                </p>
               </div>
-              <strong style={{ fontSize: 12, color: t.type === 'income' ? '#18ad99' : '#d878a1' }}>
-                {t.type === 'income' ? '+' : '-'}{fmt(t.amount)}
+              <strong style={{ fontSize: 12, color: t.type === 'income' ? '#18ad99' : t.type === 'expense' ? '#d878a1' : '#7168db' }}>
+                {t.type === 'income' ? '+' : t.type === 'expense' ? '-' : '↔ '}{fmt(t.amount)}
               </strong>
               <div style={{ display: 'flex', gap: 4 }}>
                 <button onClick={() => onEdit(t)} style={{ width: 26, height: 26, display: 'grid', placeItems: 'center', borderRadius: 8, background: 'var(--surface)', color: 'var(--muted)', border: '1px solid var(--line)' }}><Pencil style={{ width: 11 }} /></button>

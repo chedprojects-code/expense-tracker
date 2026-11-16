@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
+import { parseLocalDate } from '@/lib/date-utils'
 
 export type Profile = {
   id: string
@@ -13,6 +14,7 @@ export type Account = {
   name: string
   purpose: string
   balance: number
+  balance_as_of: string
   tone: string
   symbol: string
   annual_interest: number
@@ -25,11 +27,15 @@ export type Account = {
 export type Transaction = {
   id: string
   user_id: string
-  type: 'income' | 'expense'
+  type: 'income' | 'expense' | 'transfer'
   amount: number
   category: string
   description: string
   date: string
+  account_id: string | null
+  transfer_to_account_id: string | null
+  buy_list_item_id: string | null
+  recurring_id: string | null
   created_at: string
 }
 
@@ -113,21 +119,10 @@ export async function upsertAccount(account: Omit<Account, 'created_at'>): Promi
 
 export async function applyDailyInterest(accounts: Account[]): Promise<void> {
   const supabase = createClient()
-  const now = new Date()
-  const updates = accounts
-    .filter((a) => a.annual_interest > 0)
-    .map((a) => {
-      const last = a.last_interest_applied_at ? new Date(a.last_interest_applied_at) : new Date(a.created_at)
-      const days = (now.getTime() - last.getTime()) / (1000 * 60 * 60 * 24)
-      if (days < 1) return null
-      const interest = a.balance * (a.annual_interest / 100) * (Math.floor(days) / 365)
-      return { id: a.id, balance: a.balance + interest, last_interest_applied_at: now.toISOString() }
-    })
-    .filter(Boolean) as { id: string; balance: number; last_interest_applied_at: string }[]
-
-  await Promise.all(
-    updates.map((u) => supabase.from('accounts').update({ balance: u.balance, last_interest_applied_at: u.last_interest_applied_at }).eq('id', u.id))
-  )
+  const { error } = await supabase.rpc('apply_daily_account_interest', {
+    p_account_ids: accounts.filter((account) => account.annual_interest > 0).map((account) => account.id),
+  })
+  throwOnSupabaseError(error)
 }
 
 export async function updateAccountVaultVisibility(id: string, vault_hidden: boolean) {
@@ -154,29 +149,34 @@ export async function getTransactions(userId: string): Promise<Transaction[]> {
   return data ?? []
 }
 
-export async function insertTransaction(tx: Omit<Transaction, 'id' | 'created_at'>): Promise<Transaction> {
+export async function saveTransaction(tx: Omit<Transaction, 'created_at'>): Promise<Transaction> {
   const supabase = createClient()
-  const { data, error } = await supabase.from('transactions').insert(tx).select().single()
+  const { data, error } = await supabase.rpc('save_account_transaction', {
+    p_id: tx.id,
+    p_type: tx.type,
+    p_amount: tx.amount,
+    p_category: tx.category,
+    p_description: tx.description,
+    p_date: tx.date,
+    p_account_id: tx.account_id,
+    p_transfer_to_account_id: tx.transfer_to_account_id,
+    p_buy_list_item_id: tx.buy_list_item_id,
+    p_recurring_id: tx.recurring_id,
+  })
   throwOnSupabaseError(error)
   return data
 }
 
 export async function deleteTransaction(id: string) {
   const supabase = createClient()
-  const { error } = await supabase.from('transactions').delete().eq('id', id)
-  throwOnSupabaseError(error)
-}
-
-export async function updateTransaction(id: string, updates: Partial<Omit<Transaction, 'id' | 'user_id' | 'created_at'>>) {
-  const supabase = createClient()
-  const { error } = await supabase.from('transactions').update(updates).eq('id', id)
+  const { error } = await supabase.rpc('delete_account_transaction', { p_id: id })
   throwOnSupabaseError(error)
 }
 
 // ─── Stats & Chart ───────────────────────────────────────────────────────────
 export function calcStats(transactions: Transaction[], month: number, year: number) {
   const inMonth = (t: Transaction, m: number, y: number) => {
-    const d = new Date(t.date)
+    const d = parseLocalDate(t.date)
     return d.getMonth() === m && d.getFullYear() === y
   }
 
@@ -248,11 +248,11 @@ export function buildChartPaths(transactions: Transaction[], month: number, year
   const expenseByDay: number[] = Array(daysInMonth).fill(0)
 
   transactions.forEach((t) => {
-    const d = new Date(t.date)
+    const d = parseLocalDate(t.date)
     if (d.getMonth() !== month || d.getFullYear() !== year) return
     const day = d.getDate() - 1
     if (t.type === 'income') incomeByDay[day] += t.amount
-    else expenseByDay[day] += t.amount
+    else if (t.type === 'expense') expenseByDay[day] += t.amount
   })
 
   // Running cumulative
@@ -305,9 +305,10 @@ export async function getNotes(userId: string): Promise<Note[]> {
 
 export async function updateNotesSortOrder(items: { id: string; sort_order: number }[]) {
   const supabase = createClient()
-  await Promise.all(items.map(({ id, sort_order }) =>
+  const results = await Promise.all(items.map(({ id, sort_order }) =>
     supabase.from('notes').update({ sort_order }).eq('id', id)
   ))
+  for (const result of results) throwOnSupabaseError(result.error)
 }
 
 export async function upsertNote(note: Omit<Note, 'created_at'>): Promise<Note> {
@@ -331,9 +332,10 @@ export async function getPlainNotes(userId: string): Promise<PlainNote[]> {
 
 export async function updatePlainNotesSortOrder(items: { id: string; sort_order: number }[]) {
   const supabase = createClient()
-  await Promise.all(items.map(({ id, sort_order }) =>
+  const results = await Promise.all(items.map(({ id, sort_order }) =>
     supabase.from('plain_notes').update({ sort_order }).eq('id', id)
   ))
+  for (const result of results) throwOnSupabaseError(result.error)
 }
 
 export async function upsertPlainNote(note: Omit<PlainNote, 'created_at'>): Promise<PlainNote> {
@@ -425,6 +427,8 @@ export type FutureExpense = {
   amount: number
   due_date: string
   category: string
+  paid_at: string | null
+  paid_transaction_id: string | null
   created_at: string
 }
 
@@ -447,6 +451,17 @@ export async function deleteFutureExpense(id: string) {
   throwOnSupabaseError(error)
 }
 
+export async function settleFutureExpense(id: string, amount: number, accountId: string | null): Promise<Transaction> {
+  const supabase = createClient()
+  const { data, error } = await supabase.rpc('settle_future_expense', {
+    p_expense_id: id,
+    p_account_id: accountId,
+    p_amount: amount,
+  })
+  throwOnSupabaseError(error)
+  return data
+}
+
 // ─── Buy List ──────────────────────────────────────────────────────────────────
 export type BuyListItem = {
   id: string
@@ -455,6 +470,7 @@ export type BuyListItem = {
   price: number | null
   category: 'need' | 'want'
   bought: boolean
+  bought_at: string | null
   created_at: string
   sort_order: number
 }
@@ -468,9 +484,10 @@ export async function getBuyListItems(userId: string): Promise<BuyListItem[]> {
 
 export async function updateBuyListSortOrder(items: { id: string; sort_order: number }[]) {
   const supabase = createClient()
-  await Promise.all(items.map(({ id, sort_order }) =>
+  const results = await Promise.all(items.map(({ id, sort_order }) =>
     supabase.from('buy_list_items').update({ sort_order }).eq('id', id)
   ))
+  for (const result of results) throwOnSupabaseError(result.error)
 }
 
 export async function insertBuyListItem(item: Omit<BuyListItem, 'id' | 'created_at'>): Promise<BuyListItem> {
@@ -489,5 +506,116 @@ export async function updateBuyListItem(id: string, updates: Partial<Pick<BuyLis
 export async function deleteBuyListItem(id: string) {
   const supabase = createClient()
   const { error } = await supabase.from('buy_list_items').delete().eq('id', id)
+  throwOnSupabaseError(error)
+}
+
+export async function purchaseBuyListItem(id: string, amount: number, accountId: string | null): Promise<Transaction> {
+  const supabase = createClient()
+  const { data, error } = await supabase.rpc('purchase_buy_list_item', {
+    p_item_id: id,
+    p_amount: amount,
+    p_account_id: accountId,
+  })
+  throwOnSupabaseError(error)
+  return data
+}
+
+export async function unpurchaseBuyListItem(id: string) {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('transactions')
+    .select('id')
+    .eq('buy_list_item_id', id)
+    .maybeSingle()
+  throwOnSupabaseError(error)
+  if (data) await deleteTransaction(data.id)
+  const { error: updateError } = await supabase
+    .from('buy_list_items')
+    .update({ bought: false, bought_at: null })
+    .eq('id', id)
+  throwOnSupabaseError(updateError)
+}
+
+export type RecurringTransaction = {
+  id: string
+  user_id: string
+  type: 'income' | 'expense'
+  amount: number
+  category: string
+  description: string
+  account_id: string | null
+  frequency: 'weekly' | 'monthly'
+  next_date: string
+  active: boolean
+  created_at: string
+}
+
+export async function getRecurringTransactions(userId: string): Promise<RecurringTransaction[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('recurring_transactions')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('active', true)
+    .order('next_date')
+  throwOnSupabaseError(error)
+  return data ?? []
+}
+
+export async function upsertRecurringTransaction(rule: Omit<RecurringTransaction, 'created_at'>): Promise<RecurringTransaction> {
+  const supabase = createClient()
+  const { data, error } = await supabase.from('recurring_transactions').upsert(rule).select().single()
+  throwOnSupabaseError(error)
+  return data
+}
+
+export async function deleteRecurringTransaction(id: string) {
+  const supabase = createClient()
+  const { error } = await supabase.from('recurring_transactions').delete().eq('id', id)
+  throwOnSupabaseError(error)
+}
+
+export async function recordRecurringTransaction(id: string): Promise<Transaction> {
+  const supabase = createClient()
+  const { data, error } = await supabase.rpc('record_recurring_transaction', { p_recurring_id: id })
+  throwOnSupabaseError(error)
+  return data
+}
+
+export type MonthlyBudget = {
+  id: string
+  user_id: string
+  month_start: string
+  category: string
+  amount: number
+  created_at: string
+}
+
+export async function getMonthlyBudgets(userId: string, monthStart: string): Promise<MonthlyBudget[]> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('monthly_budgets')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('month_start', monthStart)
+    .order('category')
+  throwOnSupabaseError(error)
+  return data ?? []
+}
+
+export async function upsertMonthlyBudget(budget: Omit<MonthlyBudget, 'created_at'>): Promise<MonthlyBudget> {
+  const supabase = createClient()
+  const { data, error } = await supabase
+    .from('monthly_budgets')
+    .upsert(budget, { onConflict: 'user_id,month_start,category' })
+    .select()
+    .single()
+  throwOnSupabaseError(error)
+  return data
+}
+
+export async function deleteMonthlyBudget(id: string) {
+  const supabase = createClient()
+  const { error } = await supabase.from('monthly_budgets').delete().eq('id', id)
   throwOnSupabaseError(error)
 }

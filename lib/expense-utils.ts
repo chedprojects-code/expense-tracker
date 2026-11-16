@@ -1,5 +1,7 @@
 import type { Note, Account, SavingsGoal, Lender, FutureExpense } from '@/lib/supabase/db'
-import type { NoteDraft, AccountDraft, TxDraft, GoalDraft, LenderDraft, FutureExpenseDraft } from '@/components/dashboard/types'
+import type { NoteDraft, AccountDraft, TxDraft, GoalDraft, LenderDraft, FutureExpenseDraft, RecurringDraft } from '@/components/dashboard/types'
+import type { RecurringTransaction } from '@/lib/supabase/db'
+import { formatLocalDate } from '@/lib/date-utils'
 
 export function createNoteDraft(note?: Note): NoteDraft {
   if (note) {
@@ -15,13 +17,38 @@ export function createAccountDraft(account?: Account): AccountDraft {
   return { name: '', purpose: '', balance: '', tone: 'violet', symbol: '₦', annual_interest: '0', is_vault: false }
 }
 
-export function createTxDraft(type: 'income' | 'expense' = 'expense'): TxDraft {
+export function createTxDraft(type: 'income' | 'expense' | 'transfer' = 'expense', accountIds: string[] = []): TxDraft {
   return {
     type,
     amount: '',
-    category: type === 'income' ? 'Salary' : 'Food & snacks',
+    category: type === 'income' ? 'Salary' : type === 'transfer' ? 'Transfer' : 'Food & snacks',
     description: '',
-    date: new Date().toISOString().slice(0, 10),
+    date: formatLocalDate(),
+    account_id: accountIds[0] ?? '',
+    transfer_to_account_id: accountIds[1] ?? '',
+  }
+}
+
+export function createRecurringDraft(rule?: RecurringTransaction): RecurringDraft {
+  if (rule) {
+    return {
+      type: rule.type,
+      amount: String(rule.amount),
+      category: rule.category,
+      description: rule.description,
+      account_id: rule.account_id ?? '',
+      frequency: rule.frequency,
+      next_date: rule.next_date,
+    }
+  }
+  return {
+    type: 'expense',
+    amount: '',
+    category: 'Other',
+    description: '',
+    account_id: '',
+    frequency: 'monthly',
+    next_date: formatLocalDate(),
   }
 }
 
@@ -46,7 +73,7 @@ export function createLenderDraft(lender?: Lender): LenderDraft {
 
 export function createFutureExpenseDraft(item?: FutureExpense): FutureExpenseDraft {
   if (item) return { title: item.title, amount: String(item.amount), due_date: item.due_date, category: item.category }
-  return { title: '', amount: '', due_date: new Date().toISOString().slice(0, 10), category: 'Other' }
+  return { title: '', amount: '', due_date: formatLocalDate(), category: 'Other' }
 }
 
 export function isFormValid<T extends object>(draft: T, fields: (keyof T)[]): boolean {

@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
-  ArrowDownLeft, ArrowUpRight, CalendarClock, CircleHelp, CreditCard,
+  ArrowDownLeft, ArrowUpRight, ArrowLeftRight, CalendarClock, CircleHelp, CreditCard,
   HandCoins, Home, Moon, Plus, Search, Settings2, ShieldCheck, Sparkles, Sun,
   WalletCards, X,
 } from 'lucide-react'
@@ -135,6 +135,7 @@ export function QuickAddSheet({
   onClose,
   onIncome,
   onExpense,
+  onTransfer,
   onNote,
   onAccount,
   onLender,
@@ -145,6 +146,7 @@ export function QuickAddSheet({
   onClose: () => void
   onIncome: () => void
   onExpense: () => void
+  onTransfer: () => void
   onNote: () => void
   onAccount: () => void
   onLender: () => void
@@ -167,6 +169,10 @@ export function QuickAddSheet({
               <button onClick={onExpense}>
                 <GlassIcon tone="pink"><ArrowUpRight /></GlassIcon>
                 <span>Expense<small>Money spent</small></span>
+              </button>
+              <button onClick={onTransfer}>
+                <GlassIcon tone="gold"><ArrowLeftRight /></GlassIcon>
+                <span>Transfer<small>Move between accounts</small></span>
               </button>
               <button onClick={onNote}>
                 <GlassIcon tone="violet"><WalletCards /></GlassIcon>
