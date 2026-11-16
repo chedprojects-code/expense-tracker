@@ -791,19 +791,19 @@ export function useExpenseData() {
     }
   }, [refreshRecurringTransactions, refreshAccounts])
 
-  const saveBudget = useCallback(async (category: string, amount: number) => {
+  const saveBudget = useCallback(async (category: string, amount: number, budgetId?: string) => {
     if (!user || !Number.isFinite(amount) || amount <= 0) throw new Error('Enter a budget greater than zero.')
     const monthStart = `${viewYear}-${String(viewMonth + 1).padStart(2, '0')}-01`
     try {
       const saved = await upsertMonthlyBudget({
-        id: monthlyBudgets.find((budget) => budget.category === category)?.id ?? generateId(),
+        id: budgetId ?? monthlyBudgets.find((budget) => budget.category === category)?.id ?? generateId(),
         user_id: user.id,
         month_start: monthStart,
         category,
         amount,
       })
       setMonthlyBudgets((prev) => [
-        ...prev.filter((budget) => budget.category !== category),
+        ...prev.filter((budget) => budget.id !== saved.id && budget.category !== category),
         saved,
       ].sort((a, b) => a.category.localeCompare(b.category)))
     } catch (err) {
@@ -818,7 +818,9 @@ export function useExpenseData() {
       setMonthlyBudgets((prev) => prev.filter((budget) => budget.id !== id))
     } catch (err) {
       console.error('[removeBudget]', err)
-      setActionError('Could not delete this budget. Please try again.')
+      const message = 'Could not delete this budget. Please try again.'
+      setActionError(message)
+      throw new Error(message)
     }
   }, [])
 

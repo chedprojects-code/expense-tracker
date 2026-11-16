@@ -123,6 +123,47 @@ button { border:0; font:inherit; color:inherit; cursor:pointer; }
 .dark-mode .quick-actions button > span:last-child { color: #ffffff; }
 .dark-mode .quick-actions small { color: var(--muted); }
 
+.recurring-dialog { display: flex; flex-direction: column; overflow: hidden; }
+.recurring-dialog-fields { flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.recurring-dialog > .primary-button { flex: 0 0 auto; }
+
+.budget-manager { margin-top: 16px; }
+.budget-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin-bottom: 10px; }
+.budget-summary-card { min-width: 0; padding: 11px; border-radius: 15px; }
+.budget-summary-card span { display: block; color: var(--muted); font-size: 9px; margin-bottom: 5px; }
+.budget-summary-card strong { display: block; overflow: hidden; text-overflow: ellipsis; font-size: 12px; white-space: nowrap; }
+.budget-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; gap: 9px; padding: 12px; border-radius: 18px; }
+.budget-form label { display: flex; min-width: 0; flex-direction: column; gap: 5px; color: var(--muted); font-size: 9px; font-weight: 700; }
+.budget-form label span { padding-left: 2px; }
+.budget-form select, .budget-form input { width: 100%; min-width: 0; border: 1px solid var(--line); border-radius: 10px; padding: 9px; background: var(--surface); color: var(--ink); font: inherit; font-size: 11px; }
+.budget-form-actions { display: flex; align-items: center; gap: 6px; }
+.budget-form-actions .primary-button { display: flex; align-items: center; gap: 5px; white-space: nowrap; padding: 9px 10px; }
+.budget-form-actions button:disabled, .budget-card-actions button:disabled { cursor: wait; opacity: .6; }
+.budget-cancel-button { display: flex; align-items: center; gap: 4px; padding: 8px; border-radius: 10px; background: var(--surface); color: var(--muted); font-size: 10px; }
+.budget-error { margin: 6px 2px; color: #c44; font-size: 10px; }
+.budget-empty { display: flex; flex-direction: column; gap: 3px; margin-top: 9px; padding: 15px; border-radius: 16px; }
+.budget-empty p, .budget-empty small { margin: 0; }
+.budget-empty p { font-size: 11px; font-weight: 700; }
+.budget-empty small { color: var(--muted); font-size: 9px; }
+.budget-list { display: grid; gap: 8px; margin-top: 9px; }
+.budget-card { min-width: 0; padding: 12px; border-radius: 16px; }
+.budget-card-heading { display: flex; align-items: center; gap: 8px; }
+.budget-card-heading > div:first-child { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; }
+.budget-card-heading strong { font-size: 11px; }
+.budget-card-heading small { color: var(--muted); font-size: 9px; }
+.budget-card-actions { display: flex; gap: 4px; }
+.budget-card-actions button { display: grid; width: 29px; height: 29px; place-items: center; border-radius: 9px; background: var(--surface); color: var(--muted); }
+.budget-card .progress { margin-top: 9px; }
+.budget-status { display: block; margin-top: 5px; color: var(--muted); font-size: 9px; }
+.budget-status.over { color: #d878a1; }
+.savings-goal-empty { margin-bottom: 12px; }
+
+@media (max-width: 480px) {
+  .budget-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .budget-form { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .budget-form-actions { grid-column: 1 / -1; }
+}
+
 /* Lenders */
 .dark-mode .lenders-total strong { color: #5ddfc4; }
 .dark-mode .lender-info p { color: #ffffff; }

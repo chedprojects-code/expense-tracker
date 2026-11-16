@@ -217,39 +217,6 @@ export default function Page() {
                   </AnimatePresence>
 
                   {/* Spending Flow chart */}
-                  <SectionTitle
-                    eyebrow="SPENDING FLOW"
-                    title="Your activity"
-                    action={
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        <button className="icon-button" aria-label="View all activity" onClick={() => setShowSpendingFlow(true)}><MoreHorizontal /></button>
-                        <button className="icon-button" onClick={() => toggleCollapse('flow')} aria-label="Collapse">
-                          <ChevronDown style={{ width: 13, transform: collapsed['flow'] ? 'rotate(-90deg)' : 'none', transition: 'transform .2s' }} />
-                        </button>
-                      </div>
-                    }
-                  />
-                  <AnimatePresence initial={false}>
-                    {!collapsed['flow'] && <motion.div key="flow" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} style={{ overflow: 'hidden' }}>
-                  <section className="glass-panel chart-card">
-                    <div className="chart-labels">
-                      <span><i className="dot income-dot" /> Income</span>
-                      <span><i className="dot expense-dot" /> Expenses</span>
-                    </div>
-                    <div className="chart">
-                      <div className="grid-lines"><i /><i /><i /><i /></div>
-                      <svg viewBox="0 0 500 150" preserveAspectRatio="none" aria-label="Spending flow chart">
-                        <path className="area" d={incArea} />
-                        <path className="line income-line" d={incLine} />
-                        <path className="line expense-line" d={expLine} />
-                      </svg>
-                    </div>
-                    <div className="chart-days">
-                      {dayLabels.map((d) => <span key={d}>{d}</span>)}
-                    </div>
-                  </section>
-                    </motion.div>}
-                  </AnimatePresence>
 
                   {/* Accounts */}
                   <SectionTitle
@@ -300,57 +267,13 @@ export default function Page() {
                     </motion.div>}
                   </AnimatePresence>
 
-                  {/* Future Expenses */}
-                  <SectionTitle
-                    eyebrow="FUTURE EXPENSES"
-                    title="Planned spending"
-                    action={<button className="text-button" onClick={() => openFutureExpense()}>+ Add <ChevronRight /></button>}
-                  />
-                  {futureExpenses.length === 0 ? (
-                    <div className="glass-panel empty-notes" style={{ borderRadius: 20, padding: '24px 16px' }}>
-                      <CalendarClock style={{ width: 24, color: '#7168db' }} />
-                      <p>No future expenses yet</p>
-                      <button className="text-button" onClick={() => openFutureExpense()}>Add a planned expense</button>
-                    </div>
-                  ) : (
-                    <div className="glass-panel lenders-list">
-                      <div className="lenders-total">
-                        <span className="eyebrow">TOTAL PLANNED</span>
-                        <strong style={{ color: '#d878a1' }}>{fmt(totalFutureExpenses)}</strong>
-                      </div>
-                      {futureExpenses.map((fe) => (
-                        <motion.div layout key={fe.id} className="lender-row" id={`search-result-futureExpense-${fe.id}`}>
-                          <div className="lender-avatar" style={{ background: 'linear-gradient(135deg,#d878a1,#f0a8c8)' }}>
-                            <CalendarClock style={{ width: 14 }} />
-                          </div>
-                          <div className="lender-info">
-                            <p>{fe.title}</p>
-                            <small>{fe.category} · {fe.paid_at
-                              ? `Paid ${new Date(fe.paid_at).toLocaleDateString()}`
-                              : fe.due_date < formatLocalDate()
-                                ? `Overdue since ${fe.due_date}`
-                                : `Due ${fe.due_date}`}</small>
-                          </div>
-                          <strong className="lender-amount" style={{ color: '#d878a1' }}>{fmt(fe.amount)}</strong>
-                          <div className="lender-actions">
-                            {fe.paid_at ? (
-                              <small style={{ color: '#18ad99', fontSize: 9, fontWeight: 700 }}>PAID</small>
-                            ) : (
-                              <>
-                                <button onClick={() => setFutureExpenseToPay(fe)} title="Record payment" aria-label={`Pay ${fe.title}`} style={{ color: '#18ad99', fontSize: 9, fontWeight: 700, width: 'auto', padding: '0 5px' }}>Pay</button>
-                                <button onClick={() => openFutureExpense(fe)} aria-label={`Edit ${fe.title}`}><Pencil style={{ width: 11 }} /></button>
-                                <button onClick={() => removeFutureExpense(fe.id)} aria-label={`Delete ${fe.title}`}><Trash2 style={{ width: 11 }} /></button>
-                              </>
-                            )}
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
-                  )}
+                  
 
                   <RecurringPayments
                     rules={recurringTransactions}
                     accounts={accounts}
+                    collapsed={collapsed['recurring'] ?? false}
+                    onToggleCollapse={() => toggleCollapse('recurring')}
                     onAdd={() => openRecurring()}
                     onEdit={openRecurring}
                     onDelete={removeRecurring}
@@ -367,51 +290,152 @@ export default function Page() {
                           {hideLenderAmounts ? <EyeOff style={{ width: 13 }} /> : <Eye style={{ width: 13 }} />}
                         </button>
                         <button className="text-button" onClick={() => openLender()}>+ Add <ChevronRight /></button>
+                        <button className="icon-button" onClick={() => toggleCollapse('lenders')} aria-label={collapsed['lenders'] ? 'Expand lenders' : 'Collapse lenders'}>
+                          <ChevronDown style={{ width: 13, transform: collapsed['lenders'] ? 'rotate(-90deg)' : 'none', transition: 'transform .2s' }} />
+                        </button>
                       </div>
                     }
                   />
-                  {lenders.length === 0 ? (
-                    <div className="glass-panel empty-notes" style={{ borderRadius: 20, padding: '24px 16px' }}>
-                      <HandCoins style={{ width: 24, color: '#7168db' }} />
-                      <p>No lenders yet</p>
-                      <button className="text-button" onClick={() => openLender()}>Track who owes you</button>
-                    </div>
-                  ) : (
-                    <div className="glass-panel lenders-list">
-                      <div className="lenders-total">
-                        <span className="eyebrow">TOTAL OWED</span>
-                        <strong style={{ color: '#18ad99' }}>{hideLenderAmounts ? '••••' : fmt(totalLent - hiddenLendersTotal)}</strong>
-                        {hiddenLendersTotal > 0 && (
-                          <small style={{ color: 'var(--muted)', marginLeft: 6 }}>({fmt(hiddenLendersTotal)} hidden)</small>
-                        )}
+                  <AnimatePresence initial={false}>
+                    {!collapsed['lenders'] && <motion.div key="lenders" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} style={{ overflow: 'hidden' }}>
+                      {lenders.length === 0 ? (
+                        <div className="glass-panel empty-notes" style={{ borderRadius: 20, padding: '24px 16px' }}>
+                          <HandCoins style={{ width: 24, color: '#7168db' }} />
+                          <p>No lenders yet</p>
+                          <button className="text-button" onClick={() => openLender()}>Track who owes you</button>
+                        </div>
+                      ) : (
+                        <div className="glass-panel lenders-list">
+                          <div className="lenders-total">
+                            <span className="eyebrow">TOTAL OWED</span>
+                            <strong style={{ color: '#18ad99' }}>{hideLenderAmounts ? '••••' : fmt(totalLent - hiddenLendersTotal)}</strong>
+                            {hiddenLendersTotal > 0 && (
+                              <small style={{ color: 'var(--muted)', marginLeft: 6 }}>({fmt(hiddenLendersTotal)} hidden)</small>
+                            )}
+                          </div>
+                          {lenders.map((lender) => (
+                            <motion.div layout key={lender.id} className="lender-row" id={`search-result-lender-${lender.id}`}>
+                              <div className="lender-avatar">{lender.name[0].toUpperCase()}</div>
+                              <div className="lender-info">
+                                <p>{lender.name}</p>
+                                {lender.note && <small>{lender.note}</small>}
+                              </div>
+                              <strong className="lender-amount" style={{ color: hiddenLenders.includes(lender.id) ? 'var(--muted)' : undefined }}>
+                                {hideLenderAmounts || hiddenLenders.includes(lender.id) ? '••••' : fmt(lender.amount)}
+                              </strong>
+                              <div className="lender-actions">
+                                <button
+                                  onClick={() => toggleHideLender(lender.id)}
+                                  title={hiddenLenders.includes(lender.id) ? 'Reveal from net worth' : 'Hide from net worth'}
+                                  aria-label={hiddenLenders.includes(lender.id) ? `Reveal ${lender.name}` : `Hide ${lender.name} from net worth`}
+                                >
+                                  {hiddenLenders.includes(lender.id)
+                                    ? <EyeOff style={{ width: 11, color: '#d878a1' }} />
+                                    : <Eye style={{ width: 11, color: 'var(--muted)' }} />}
+                                </button>
+                                <button onClick={() => openLender(lender)}><Pencil style={{ width: 11 }} /></button>
+                                <button onClick={() => removeLender(lender.id)}><Trash2 style={{ width: 11 }} /></button>
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
+                      )}
+                    </motion.div>}
+                  </AnimatePresence>
+
+
+                  {/* Future Expenses */}
+                  <SectionTitle
+                    eyebrow="FUTURE EXPENSES"
+                    title="Planned spending"
+                    action={
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <button className="text-button" onClick={() => openFutureExpense()}>+ Add <ChevronRight /></button>
+                        <button className="icon-button" onClick={() => toggleCollapse('future-expenses')} aria-label={collapsed['future-expenses'] ? 'Expand future expenses' : 'Collapse future expenses'}>
+                          <ChevronDown style={{ width: 13, transform: collapsed['future-expenses'] ? 'rotate(-90deg)' : 'none', transition: 'transform .2s' }} />
+                        </button>
                       </div>
-                      {lenders.map((lender) => (
-                        <motion.div layout key={lender.id} className="lender-row" id={`search-result-lender-${lender.id}`}>
-                          <div className="lender-avatar">{lender.name[0].toUpperCase()}</div>
-                          <div className="lender-info">
-                            <p>{lender.name}</p>
-                            {lender.note && <small>{lender.note}</small>}
+                    }
+                  />
+                  <AnimatePresence initial={false}>
+                    {!collapsed['future-expenses'] && <motion.div key="future-expenses" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} style={{ overflow: 'hidden' }}>
+                      {futureExpenses.length === 0 ? (
+                        <div className="glass-panel empty-notes" style={{ borderRadius: 20, padding: '24px 16px' }}>
+                          <CalendarClock style={{ width: 24, color: '#7168db' }} />
+                          <p>No future expenses yet</p>
+                          <button className="text-button" onClick={() => openFutureExpense()}>Add a planned expense</button>
+                        </div>
+                      ) : (
+                        <div className="glass-panel lenders-list">
+                          <div className="lenders-total">
+                            <span className="eyebrow">TOTAL PLANNED</span>
+                            <strong style={{ color: '#d878a1' }}>{fmt(totalFutureExpenses)}</strong>
                           </div>
-                          <strong className="lender-amount" style={{ color: hiddenLenders.includes(lender.id) ? 'var(--muted)' : undefined }}>
-                            {hideLenderAmounts || hiddenLenders.includes(lender.id) ? '••••' : fmt(lender.amount)}
-                          </strong>
-                          <div className="lender-actions">
-                            <button
-                              onClick={() => toggleHideLender(lender.id)}
-                              title={hiddenLenders.includes(lender.id) ? 'Reveal from net worth' : 'Hide from net worth'}
-                              aria-label={hiddenLenders.includes(lender.id) ? `Reveal ${lender.name}` : `Hide ${lender.name} from net worth`}
-                            >
-                              {hiddenLenders.includes(lender.id)
-                                ? <EyeOff style={{ width: 11, color: '#d878a1' }} />
-                                : <Eye style={{ width: 11, color: 'var(--muted)' }} />}
-                            </button>
-                            <button onClick={() => openLender(lender)}><Pencil style={{ width: 11 }} /></button>
-                            <button onClick={() => removeLender(lender.id)}><Trash2 style={{ width: 11 }} /></button>
-                          </div>
-                        </motion.div>
-                      ))}
+                          {futureExpenses.map((fe) => (
+                            <motion.div layout key={fe.id} className="lender-row" id={`search-result-futureExpense-${fe.id}`}>
+                              <div className="lender-avatar" style={{ background: 'linear-gradient(135deg,#d878a1,#f0a8c8)' }}>
+                                <CalendarClock style={{ width: 14 }} />
+                              </div>
+                              <div className="lender-info">
+                                <p>{fe.title}</p>
+                                <small>{fe.category} · {fe.paid_at
+                                  ? `Paid ${new Date(fe.paid_at).toLocaleDateString()}`
+                                  : fe.due_date < formatLocalDate()
+                                    ? `Overdue since ${fe.due_date}`
+                                    : `Due ${fe.due_date}`}</small>
+                              </div>
+                              <strong className="lender-amount" style={{ color: '#d878a1' }}>{fmt(fe.amount)}</strong>
+                              <div className="lender-actions">
+                                {fe.paid_at ? (
+                                  <small style={{ color: '#18ad99', fontSize: 9, fontWeight: 700 }}>PAID</small>
+                                ) : (
+                                  <>
+                                    <button onClick={() => setFutureExpenseToPay(fe)} title="Record payment" aria-label={`Pay ${fe.title}`} style={{ color: '#18ad99', fontSize: 9, fontWeight: 700, width: 'auto', padding: '0 5px' }}>Pay</button>
+                                    <button onClick={() => openFutureExpense(fe)} aria-label={`Edit ${fe.title}`}><Pencil style={{ width: 11 }} /></button>
+                                    <button onClick={() => removeFutureExpense(fe.id)} aria-label={`Delete ${fe.title}`}><Trash2 style={{ width: 11 }} /></button>
+                                  </>
+                                )}
+                              </div>
+                            </motion.div>
+                          ))}
+                        </div>
+                      )}
+                    </motion.div>}
+                  </AnimatePresence>
+
+                    <SectionTitle
+                    eyebrow="SPENDING FLOW"
+                    title="Your activity"
+                    action={
+                      <div style={{ display: 'flex', gap: 4 }}>
+                        <button className="icon-button" aria-label="View all activity" onClick={() => setShowSpendingFlow(true)}><MoreHorizontal /></button>
+                        <button className="icon-button" onClick={() => toggleCollapse('flow')} aria-label="Collapse">
+                          <ChevronDown style={{ width: 13, transform: collapsed['flow'] ? 'rotate(-90deg)' : 'none', transition: 'transform .2s' }} />
+                        </button>
+                      </div>
+                    }
+                  />
+                  <AnimatePresence initial={false}>
+                    {!collapsed['flow'] && <motion.div key="flow" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} style={{ overflow: 'hidden' }}>
+                  <section className="glass-panel chart-card">
+                    <div className="chart-labels">
+                      <span><i className="dot income-dot" /> Income</span>
+                      <span><i className="dot expense-dot" /> Expenses</span>
                     </div>
-                  )}
+                    <div className="chart">
+                      <div className="grid-lines"><i /><i /><i /><i /></div>
+                      <svg viewBox="0 0 500 150" preserveAspectRatio="none" aria-label="Spending flow chart">
+                        <path className="area" d={incArea} />
+                        <path className="line income-line" d={incLine} />
+                        <path className="line expense-line" d={expLine} />
+                      </svg>
+                    </div>
+                    <div className="chart-days">
+                      {dayLabels.map((d) => <span key={d}>{d}</span>)}
+                    </div>
+                  </section>
+                    </motion.div>}
+                  </AnimatePresence>
 
                   {/* Spending Breakdown */}
                   <SectionTitle
@@ -456,23 +480,42 @@ export default function Page() {
                   </AnimatePresence>
 
                   {/* Savings Goal */}
-                  {goal && (
-                    <section className="glass-panel goal-card" style={{ cursor: 'pointer' }} onClick={() => setActive('Settings')}>
-                      <div className="goal-icon"><Target /></div>
-                      <div className="goal-copy">
-                        <p className="eyebrow">SAVINGS GOAL</p>
-                        <h3>{goal.title}</h3>
-                        <div className="goal-line">
-                          <span>{fmt(goal.current_amount)} of {fmt(goal.target_amount)}</span>
-                          <strong>{goalPercent}%</strong>
+                  <SectionTitle
+                    eyebrow="YOUR PLAN"
+                    title="Savings goal"
+                    action={
+                      <button className="icon-button" onClick={() => toggleCollapse('savings-goal')} aria-label={collapsed['savings-goal'] ? 'Expand savings goal' : 'Collapse savings goal'}>
+                        <ChevronDown style={{ width: 13, transform: collapsed['savings-goal'] ? 'rotate(-90deg)' : 'none', transition: 'transform .2s' }} />
+                      </button>
+                    }
+                  />
+                  <AnimatePresence initial={false}>
+                    {!collapsed['savings-goal'] && <motion.div key="savings-goal" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} style={{ overflow: 'hidden' }}>
+                      {goal ? (
+                        <section className="glass-panel goal-card" style={{ cursor: 'pointer' }} onClick={() => setActive('Settings')}>
+                          <div className="goal-icon"><Target /></div>
+                          <div className="goal-copy">
+                            <p className="eyebrow">SAVINGS GOAL</p>
+                            <h3>{goal.title}</h3>
+                            <div className="goal-line">
+                              <span>{fmt(goal.current_amount)} of {fmt(goal.target_amount)}</span>
+                              <strong>{goalPercent}%</strong>
+                            </div>
+                            <div className="progress">
+                              <motion.i initial={{ width: 0 }} animate={{ width: `${goalPercent}%` }} />
+                            </div>
+                          </div>
+                          <ChevronRight className="goal-arrow" />
+                        </section>
+                      ) : (
+                        <div className="glass-panel empty-notes savings-goal-empty">
+                          <Target style={{ width: 22, color: '#7168db' }} />
+                          <p>No savings goal set</p>
+                          <button className="text-button" onClick={() => setActive('Settings')}>Create a savings goal</button>
                         </div>
-                        <div className="progress">
-                          <motion.i initial={{ width: 0 }} animate={{ width: `${goalPercent}%` }} />
-                        </div>
-                      </div>
-                      <ChevronRight className="goal-arrow" />
-                    </section>
-                  )}
+                      )}
+                    </motion.div>}
+                  </AnimatePresence>
                 </>}
 
                 {/* ══ VAULT ══ */}

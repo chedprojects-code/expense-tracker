@@ -15,7 +15,7 @@ export function InsightsView({ stats, transactions, accounts, month, year, budge
   month: number
   year: number
   budgets: MonthlyBudget[]
-  onSaveBudget: (category: string, amount: number) => Promise<void>
+  onSaveBudget: (category: string, amount: number, budgetId?: string) => Promise<void>
   onDeleteBudget: (id: string) => Promise<void>
 }) {
   const monthTxns = transactions.filter((transaction) => {

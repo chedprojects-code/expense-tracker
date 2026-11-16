@@ -170,22 +170,24 @@ export function QuickAddSheet({
                 <GlassIcon tone="pink"><ArrowUpRight /></GlassIcon>
                 <span>Expense<small>Money spent</small></span>
               </button>
-              <button onClick={onTransfer}>
-                <GlassIcon tone="gold"><ArrowLeftRight /></GlassIcon>
-                <span>Transfer<small>Move between accounts</small></span>
-              </button>
-              <button onClick={onNote}>
-                <GlassIcon tone="violet"><WalletCards /></GlassIcon>
-                <span>Note<small>Plan a purchase</small></span>
-              </button>
-              <button onClick={onAccount}>
-                <GlassIcon tone="gold"><CreditCard /></GlassIcon>
-                <span>Account<small>Add a wallet</small></span>
-              </button>
               <button onClick={onLender}>
                 <GlassIcon tone="teal"><HandCoins /></GlassIcon>
                 <span>Lender<small>Track who owes you</small></span>
               </button>
+               <button onClick={onNote}>
+                <GlassIcon tone="violet"><WalletCards /></GlassIcon>
+                <span>Note<small>Plan a purchase</small></span>
+              </button>
+              <button onClick={onTransfer}>
+                <GlassIcon tone="gold"><ArrowLeftRight /></GlassIcon>
+                <span>Transfer<small>Move between accounts</small></span>
+              </button>
+             
+              <button onClick={onAccount}>
+                <GlassIcon tone="gold"><CreditCard /></GlassIcon>
+                <span>Account<small>Add a wallet</small></span>
+              </button>
+              
               <button onClick={onFutureExpense}>
                 <GlassIcon tone="pink"><CalendarClock /></GlassIcon>
                 <span>Future Exp.<small>Plan ahead</small></span>

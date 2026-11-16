@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Trash2 } from 'lucide-react'
+import { Pencil, Save, Trash2, X } from 'lucide-react'
 import { fmt, type MonthlyBudget, type Transaction } from '@/lib/supabase/db'
 import { parseLocalDate } from '@/lib/date-utils'
 import { SectionTitle } from './ui'
@@ -16,14 +16,18 @@ export function BudgetManager({ budgets, transactions, month, year, onSave, onDe
   transactions: Transaction[]
   month: number
   year: number
-  onSave: (category: string, amount: number) => Promise<void>
+  onSave: (category: string, amount: number, budgetId?: string) => Promise<void>
   onDelete: (id: string) => Promise<void>
 }) {
   const [category, setCategory] = useState(COMMON_EXPENSE_CATEGORIES[0])
   const [amount, setAmount] = useState('')
+  const [editingBudget, setEditingBudget] = useState<MonthlyBudget | null>(null)
+  const [saving, setSaving] = useState(false)
+  const [deletingId, setDeletingId] = useState('')
   const [error, setError] = useState('')
   const categories = [...new Set([
     ...COMMON_EXPENSE_CATEGORIES,
+    ...budgets.map((budget) => budget.category),
     ...transactions.filter((transaction) => transaction.type === 'expense').map((transaction) => transaction.category),
   ])]
   const spentByCategory = new Map<string, number>()
@@ -35,6 +39,24 @@ export function BudgetManager({ budgets, transactions, month, year, onSave, onDe
     }
   }
 
+  const totalBudget = budgets.reduce((sum, budget) => sum + budget.amount, 0)
+  const totalSpent = budgets.reduce((sum, budget) => sum + (spentByCategory.get(budget.category) ?? 0), 0)
+  const totalRemaining = totalBudget - totalSpent
+
+  const resetForm = () => {
+    setEditingBudget(null)
+    setCategory(COMMON_EXPENSE_CATEGORIES[0])
+    setAmount('')
+    setError('')
+  }
+
+  const editBudget = (budget: MonthlyBudget) => {
+    setEditingBudget(budget)
+    setCategory(budget.category)
+    setAmount(String(budget.amount))
+    setError('')
+  }
+
   const submit = async (event: React.FormEvent) => {
     event.preventDefault()
     const parsedAmount = Number(amount)
@@ -42,54 +64,111 @@ export function BudgetManager({ budgets, transactions, month, year, onSave, onDe
       setError('Enter a budget greater than zero.')
       return
     }
+    setSaving(true)
     try {
-      await onSave(category, parsedAmount)
-      setAmount('')
-      setError('')
+      await onSave(category, parsedAmount, editingBudget?.id)
+      resetForm()
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'Could not save this budget.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const deleteBudget = async (budget: MonthlyBudget) => {
+    setDeletingId(budget.id)
+    setError('')
+    try {
+      await onDelete(budget.id)
+      if (editingBudget?.id === budget.id) resetForm()
+    } catch (deleteError) {
+      setError(deleteError instanceof Error ? deleteError.message : 'Could not delete this budget.')
+    } finally {
+      setDeletingId('')
     }
   }
 
   return (
-    <section style={{ marginTop: 16 }}>
+    <section className="budget-manager">
       <SectionTitle eyebrow="MONTHLY PLAN" title="Category budgets" />
-      <form className="glass-panel" onSubmit={submit} style={{ borderRadius: 18, padding: 12, display: 'flex', gap: 7 }}>
-        <select aria-label="Budget category" value={category} onChange={(event) => setCategory(event.target.value)} style={{ minWidth: 0, flex: 1, borderRadius: 9, padding: 8, background: 'var(--surface)', color: 'var(--ink)' }}>
-          {categories.map((option) => <option key={option}>{option}</option>)}
-        </select>
-        <input aria-label="Budget amount" type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="Monthly limit" style={{ width: 110, minWidth: 0, borderRadius: 9, padding: 8, background: 'var(--surface)', color: 'var(--ink)' }} />
-        <button className="primary-button" type="submit" style={{ margin: 0, padding: '8px 10px' }}>Set</button>
+      <div className="budget-summary">
+        <div className="glass-panel budget-summary-card">
+          <span>Total budget</span>
+          <strong>{fmt(totalBudget)}</strong>
+        </div>
+        <div className="glass-panel budget-summary-card">
+          <span>Spent so far</span>
+          <strong>{fmt(totalSpent)}</strong>
+        </div>
+        <div className="glass-panel budget-summary-card">
+          <span>{totalRemaining < 0 ? 'Over budget' : 'Remaining'}</span>
+          <strong style={{ color: totalRemaining < 0 ? '#d878a1' : '#18ad99' }}>
+            {fmt(Math.abs(totalRemaining))}
+          </strong>
+        </div>
+      </div>
+
+      <form className="glass-panel budget-form" onSubmit={submit}>
+        <label>
+          <span>Category</span>
+          <select aria-label="Budget category" value={category} onChange={(event) => setCategory(event.target.value)}>
+            {categories.map((option) => {
+              const isUsedByAnotherBudget = budgets.some((budget) => budget.category === option && budget.id !== editingBudget?.id)
+              return <option key={option} value={option} disabled={Boolean(editingBudget) && isUsedByAnotherBudget}>{option}</option>
+            })}
+          </select>
+        </label>
+        <label>
+          <span>Monthly limit</span>
+          <input aria-label="Budget amount" type="number" min="0.01" step="0.01" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="Enter amount" />
+        </label>
+        <div className="budget-form-actions">
+          <button className="primary-button" type="submit" disabled={saving} style={{ margin: 0 }}>
+            <Save style={{ width: 14 }} /> {saving ? 'Saving…' : editingBudget ? 'Update budget' : 'Add budget'}
+          </button>
+          {editingBudget && (
+            <button type="button" className="budget-cancel-button" onClick={resetForm}>
+              <X style={{ width: 14 }} /> Cancel
+            </button>
+          )}
+        </div>
       </form>
-      {error && <p role="alert" style={{ color: '#c44', fontSize: 10, margin: '6px 2px' }}>{error}</p>}
+      {error && <p role="alert" className="budget-error">{error}</p>}
+
       {budgets.length === 0 ? (
-        <div className="glass-panel" style={{ padding: 12, borderRadius: 16, marginTop: 8, color: 'var(--muted)', fontSize: 10 }}>
-          Set a category limit to track spending progress here.
+        <div className="glass-panel budget-empty">
+          <p>No category budgets yet.</p>
+          <small>Set a monthly limit to track spending progress here.</small>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 8 }}>
+        <div className="budget-list">
           {budgets.map((budget) => {
             const spent = spentByCategory.get(budget.category) ?? 0
             const percent = Math.round((spent / budget.amount) * 100)
             const overBudget = spent > budget.amount
             return (
-              <div key={budget.id} className="glass-panel" style={{ padding: 12, borderRadius: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <strong style={{ fontSize: 11, flex: 1 }}>{budget.category}</strong>
-                  <span style={{ fontSize: 9, color: overBudget ? '#d878a1' : 'var(--muted)' }}>
-                    {fmt(spent)} / {fmt(budget.amount)}
-                  </span>
-                  <button type="button" aria-label={`Delete ${budget.category} budget`} onClick={() => onDelete(budget.id)} style={{ background: 'none', color: 'var(--muted)', padding: 3 }}>
-                    <Trash2 style={{ width: 13 }} />
-                  </button>
+              <article key={budget.id} className="glass-panel budget-card">
+                <div className="budget-card-heading">
+                  <div>
+                    <strong>{budget.category}</strong>
+                    <small>{fmt(spent)} spent of {fmt(budget.amount)}</small>
+                  </div>
+                  <div className="budget-card-actions">
+                    <button type="button" aria-label={`Edit ${budget.category} budget`} title="Edit budget" onClick={() => editBudget(budget)}>
+                      <Pencil style={{ width: 14 }} />
+                    </button>
+                    <button type="button" aria-label={`Delete ${budget.category} budget`} title="Delete budget" disabled={deletingId === budget.id} onClick={() => deleteBudget(budget)}>
+                      <Trash2 style={{ width: 14 }} />
+                    </button>
+                  </div>
                 </div>
-                <div className="progress" style={{ marginTop: 8 }}>
+                <div className="progress">
                   <i style={{ display: 'block', height: '100%', width: `${Math.min(percent, 100)}%`, borderRadius: 9, background: overBudget ? '#d878a1' : percent >= 80 ? '#f0a04b' : '#18ad99' }} />
                 </div>
-                <small style={{ display: 'block', marginTop: 5, color: overBudget ? '#d878a1' : 'var(--muted)', fontSize: 9 }}>
+                <small className={`budget-status ${overBudget ? 'over' : ''}`}>
                   {overBudget ? `Over budget by ${fmt(spent - budget.amount)}` : percent >= 80 ? 'Close to your limit' : `${fmt(budget.amount - spent)} remaining`}
                 </small>
-              </div>
+              </article>
             )
           })}
         </div>

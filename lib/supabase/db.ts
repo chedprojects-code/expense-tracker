@@ -607,7 +607,7 @@ export async function upsertMonthlyBudget(budget: Omit<MonthlyBudget, 'created_a
   const supabase = createClient()
   const { data, error } = await supabase
     .from('monthly_budgets')
-    .upsert(budget, { onConflict: 'user_id,month_start,category' })
+    .upsert(budget, { onConflict: 'id' })
     .select()
     .single()
   throwOnSupabaseError(error)

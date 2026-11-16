@@ -6,6 +6,7 @@ import type { NoteDraft, AccountDraft, TxDraft, LenderDraft, FutureExpenseDraft,
 import type { Account, BuyListItem, FutureExpense } from '@/lib/supabase/db'
 
 const CATEGORIES = ['Food & snacks', 'Transport', 'Outings', 'Data & airtime', 'Utilities', 'Shopping', 'Health', 'Other']
+const INCOME_CATEGORIES = ['Salary', 'Freelance', 'Gift', 'Investment', 'Other']
 const TONE_COLORS: Record<string, string> = { violet: '#7c6cff', teal: '#59d5c9', gold: '#f6b86c', pink: '#ed8fbb' }
 
 // ─── Note Dialog ──────────────────────────────────────────────────────────────
@@ -172,7 +173,7 @@ export function TxDialog({ open, draft, setDraft, onSave, onClose, isEditing, ac
         {draft.type !== 'transfer' && <label>Category
           <select value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })}>
             {draft.type === 'income'
-              ? ['Salary', 'Freelance', 'Gift', 'Investment', 'Other'].map((c) => <option key={c}>{c}</option>)
+              ? INCOME_CATEGORIES.map((c) => <option key={c}>{c}</option>)
               : CATEGORIES.map((c) => <option key={c}>{c}</option>)
             }
           </select>
@@ -324,45 +325,51 @@ export function RecurringDialog({ open, draft, setDraft, accounts, onSave, onClo
   isEditing: boolean
 }) {
   if (!open) return null
+  const categories = draft.type === 'income' ? INCOME_CATEGORIES : CATEGORIES
   return (
     <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
-      <motion.form className="note-dialog glass-panel" onSubmit={(event) => { event.preventDefault(); onSave() }} initial={{ y: 40 }} animate={{ y: 0 }}>
+      <motion.form className="note-dialog glass-panel recurring-dialog" onSubmit={(event) => { event.preventDefault(); onSave() }} initial={{ y: 40 }} animate={{ y: 0 }}>
         <button type="button" className="close-button" onClick={onClose}><X /></button>
         <p className="eyebrow">{isEditing ? 'EDIT RECURRING' : 'NEW RECURRING'}</p>
         <h2>{isEditing ? 'Update reminder' : 'Add a recurring reminder'}</h2>
-        <label>Type
-          <select value={draft.type} onChange={(e) => {
-            const type = e.target.value as RecurringDraft['type']
-            setDraft({ ...draft, type, category: type === 'income' ? 'Salary' : 'Other' })
-          }}>
-            <option value="expense">Expense</option>
-            <option value="income">Income</option>
-          </select>
-        </label>
-        <label>Amount (NGN)
-          <input required type="number" min="0.01" step="0.01" value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} inputMode="decimal" />
-        </label>
-        <label>Category
-          <input required value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })} />
-        </label>
-        <label>Description
-          <input value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="e.g. Internet subscription" />
-        </label>
-        <label>Account
-          <select value={draft.account_id} onChange={(e) => setDraft({ ...draft, account_id: e.target.value })}>
-            <option value="">Unassigned — no balance change</option>
-            {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
-          </select>
-        </label>
-        <label>Frequency
-          <select value={draft.frequency} onChange={(e) => setDraft({ ...draft, frequency: e.target.value as RecurringDraft['frequency'] })}>
-            <option value="weekly">Weekly</option>
-            <option value="monthly">Monthly</option>
-          </select>
-        </label>
-        <label>Next due date
-          <input required type="date" value={draft.next_date} onChange={(e) => setDraft({ ...draft, next_date: e.target.value })} />
-        </label>
+        <div className="recurring-dialog-fields">
+          <label>Type
+            <select value={draft.type} onChange={(e) => {
+              const type = e.target.value as RecurringDraft['type']
+              setDraft({ ...draft, type, category: type === 'income' ? 'Salary' : 'Other' })
+            }}>
+              <option value="expense">Expense</option>
+              <option value="income">Income</option>
+            </select>
+          </label>
+          <label>Amount (NGN)
+            <input required type="number" min="0.01" step="0.01" value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} inputMode="decimal" />
+          </label>
+          <label>Category
+            <select required value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })}>
+              {!categories.includes(draft.category) && <option value={draft.category}>{draft.category}</option>}
+              {categories.map((category) => <option key={category} value={category}>{category}</option>)}
+            </select>
+          </label>
+          <label>Description
+            <input value={draft.description} onChange={(e) => setDraft({ ...draft, description: e.target.value })} placeholder="e.g. Internet subscription" />
+          </label>
+          <label>Account
+            <select value={draft.account_id} onChange={(e) => setDraft({ ...draft, account_id: e.target.value })}>
+              <option value="">Unassigned — no balance change</option>
+              {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+            </select>
+          </label>
+          <label>Frequency
+            <select value={draft.frequency} onChange={(e) => setDraft({ ...draft, frequency: e.target.value as RecurringDraft['frequency'] })}>
+              <option value="weekly">Weekly</option>
+              <option value="monthly">Monthly</option>
+            </select>
+          </label>
+          <label>Next due date
+            <input required type="date" value={draft.next_date} onChange={(e) => setDraft({ ...draft, next_date: e.target.value })} />
+          </label>
+        </div>
         <button className="primary-button" type="submit"><Save /> Save reminder</button>
       </motion.form>
     </motion.div>
