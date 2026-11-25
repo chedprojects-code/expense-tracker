@@ -797,11 +797,14 @@ button { border:0; font:inherit; color:inherit; cursor:pointer; }
   inset: 0;
   justify-content: center;
   padding: 16px;
+  padding-right: 1vw;
+  padding-left: 1vw;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
 
 .note-dialog {
+  width: 98vw;
   max-height: calc(100dvh - 32px);
   margin: 0 auto;
   overflow-y: auto;
@@ -810,6 +813,7 @@ button { border:0; font:inherit; color:inherit; cursor:pointer; }
 }
 
 .add-sheet {
+  width: 98vw;
   max-width: 510px;
   max-height: calc(100dvh - 32px);
   overflow-y: auto;
@@ -1143,8 +1147,10 @@ button { border:0; font:inherit; color:inherit; cursor:pointer; }
 .dark-mode .notes-reminder-banner button { color: #b7b0ff; }
 
 @media (max-width: 520px) {
-  .notes-filter-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .notes-filter-bar { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 12px; }
   .notes-search { grid-column: 1 / -1; }
+  .notes-search { height: 34px; }
+  .notes-filter-bar select { height: 32px; padding: 0 7px; overflow: hidden; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
   .notes-reminder-banner { align-items: flex-start; }
   .notes-reminder-banner button { align-self: center; }
   .lenders-list { padding: 12px; }
@@ -1172,6 +1178,33 @@ button { border:0; font:inherit; color:inherit; cursor:pointer; }
   }
   .lender-debt-row .lender-actions button { width: 36px; height: 34px; }
   .lender-debt-row .lender-actions .lender-repay-button { width: auto; height: 34px; }
+}
+
+.transaction-history-module { margin-top: 18px; }
+.transaction-history-module .section-head { margin-top: 0; }
+.transaction-history-count { color: var(--muted); font-size: 9px; font-weight: 700; }
+.transaction-history-card { padding: 3px 14px; border-radius: 20px; }
+.transaction-history-list { display: flex; flex-direction: column; }
+.transaction-history-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.transaction-history-row:last-child { border-bottom: 0; }
+.transaction-history-copy { min-width: 0; flex: 1; }
+.transaction-history-copy p { overflow-wrap: anywhere; margin: 0; font-size: 12px; font-weight: 600; }
+.transaction-history-copy small { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; line-height: 1.4; }
+.transaction-history-amount { flex: none; font-size: 12px; white-space: nowrap; }
+.transaction-history-amount.income { color: #18ad99; }
+.transaction-history-amount.expense { color: #d878a1; }
+.transaction-history-amount.transfer { color: #7168db; }
+.transaction-history-empty { margin: 9px 0; color: var(--muted); font-size: 11px; }
+
+:root { --card-background: #fff; --card-border: #e7ebf2; --card-shadow: 0 5px 16px rgba(32,45,70,.05); }
+.dark-mode { --card-background: #1d2030; --card-border: rgba(255,255,255,.1); --card-shadow: 0 6px 18px rgba(0,0,0,.14); }
+.glass-panel { background: var(--card-background); border-color: var(--card-border); box-shadow: var(--card-shadow); }
+.dark-mode .glass-panel { background: var(--card-background); border-color: var(--card-border); box-shadow: var(--card-shadow); }
+.account-card,.dark-mode .account-card { background: var(--card-background); }
+
+@media (max-width: 360px) {
+  .notes-filter-bar { gap: 4px; }
+  .notes-filter-bar select { padding: 0 5px; font-size: 8px; }
 }
 
 @media (max-width: 480px) {

@@ -70,29 +70,6 @@ export function InsightsView({ stats, transactions, accounts, month, year, budge
           }
         </div>
       </div>
-      <div className="glass-panel" style={{ padding: '14px', borderRadius: 20, marginTop: 12 }}>
-        <p className="eyebrow" style={{ marginBottom: 10 }}>TRANSACTIONS</p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {monthTxns.length === 0
-            ? <p style={{ color: 'var(--muted)', fontSize: 11 }}>No transactions this month.</p>
-            : monthTxns.map((tx) => (
-              <div key={tx.id} id={`search-result-transaction-${tx.id}`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--line)' }}>
-                <div>
-                  <p style={{ margin: 0, fontSize: 12, fontWeight: 600 }}>{tx.description || tx.category}</p>
-                  <small style={{ color: 'var(--muted)', fontSize: 10 }}>
-                    {tx.type === 'transfer'
-                      ? `${accounts.find((account) => account.id === tx.account_id)?.name ?? 'Account'} → ${accounts.find((account) => account.id === tx.transfer_to_account_id)?.name ?? 'Account'}`
-                      : `${tx.category}${tx.account_id ? ` · ${accounts.find((account) => account.id === tx.account_id)?.name ?? 'Account'}` : ''}`} · {tx.date}
-                  </small>
-                </div>
-                <strong style={{ fontSize: 13, color: tx.type === 'income' ? '#18ad99' : tx.type === 'expense' ? '#d878a1' : '#7168db' }}>
-                  {tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : '↔ '}{fmt(tx.amount)}
-                </strong>
-              </div>
-            ))
-          }
-        </div>
-      </div>
       <BudgetManager
         budgets={budgets}
         transactions={transactions}
@@ -101,6 +78,35 @@ export function InsightsView({ stats, transactions, accounts, month, year, budge
         onSave={onSaveBudget}
         onDelete={onDeleteBudget}
       />
+      <section className="transaction-history-module">
+        <SectionTitle
+          eyebrow="ACTIVITY"
+          title="Transaction history"
+          action={<span className="transaction-history-count">{monthTxns.length} this month</span>}
+        />
+        <div className="glass-panel transaction-history-card">
+          <div className="transaction-history-list">
+            {monthTxns.length === 0
+              ? <p className="transaction-history-empty">No transactions this month.</p>
+              : monthTxns.map((tx) => (
+                <div key={tx.id} id={`search-result-transaction-${tx.id}`} className="transaction-history-row">
+                  <div className="transaction-history-copy">
+                    <p>{tx.description || tx.category}</p>
+                    <small>
+                      {tx.type === 'transfer'
+                        ? `${accounts.find((account) => account.id === tx.account_id)?.name ?? 'Account'} → ${accounts.find((account) => account.id === tx.transfer_to_account_id)?.name ?? 'Account'}`
+                        : `${tx.category}${tx.account_id ? ` · ${accounts.find((account) => account.id === tx.account_id)?.name ?? 'Account'}` : ''}`} · {tx.date}
+                    </small>
+                  </div>
+                  <strong className={`transaction-history-amount ${tx.type}`}>
+                    {tx.type === 'income' ? '+' : tx.type === 'expense' ? '-' : '↔ '}{fmt(tx.amount)}
+                  </strong>
+                </div>
+              ))
+            }
+          </div>
+        </div>
+      </section>
     </section>
   )
 }
