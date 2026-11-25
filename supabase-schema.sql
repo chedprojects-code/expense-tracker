@@ -645,4 +645,42 @@ do $$ begin
   end if;
 end $$;
 
+-- Public bank logos used by account cards. Run this schema, then upload the
+-- files from public/banks through the account dialog.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'bank-logos',
+  'bank-logos',
+  true,
+  1000000,
+  array['image/jpeg', 'image/png']
+)
+on conflict (id) do update
+set public = excluded.public,
+    file_size_limit = excluded.file_size_limit,
+    allowed_mime_types = excluded.allowed_mime_types;
+
+drop policy if exists "Public can view bank logos" on storage.objects;
+create policy "Public can view bank logos"
+on storage.objects for select
+to public
+using (bucket_id = 'bank-logos');
+
+drop policy if exists "Authenticated users can upload bank logos" on storage.objects;
+create policy "Authenticated users can upload bank logos"
+on storage.objects for insert
+to authenticated
+with check (
+  bucket_id = 'bank-logos'
+  and name in (
+    'alat.jpg',
+    'moniepoint.jpg',
+    'opay.png',
+    'palmpay.png',
+    'piggy.png',
+    'pocket.png',
+    'smartcash.png'
+  )
+);
+
 notify pgrst, 'reload schema';

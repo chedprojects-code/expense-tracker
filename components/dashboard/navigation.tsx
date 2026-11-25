@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import {
   ArrowDownLeft, ArrowUpRight, ArrowLeftRight, CalendarClock, CircleHelp, CreditCard,
@@ -30,6 +30,8 @@ export function DashboardHeader({
   onSettings: () => void
 }) {
   const [query, setQuery] = useState('')
+  const [searchOpen, setSearchOpen] = useState(false)
+  const searchInputRef = useRef<HTMLInputElement>(null)
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const results = normalizedQuery.length < 2
     ? []
@@ -40,7 +42,12 @@ export function DashboardHeader({
   const selectResult = (item: DashboardSearchItem) => {
     onSelectSearchResult(item)
     setQuery('')
+    setSearchOpen(false)
   }
+
+  useEffect(() => {
+    if (searchOpen) searchInputRef.current?.focus()
+  }, [searchOpen])
 
   return (
     <header className="topbar">
@@ -57,12 +64,21 @@ export function DashboardHeader({
                 {unreadCount > 0 && <i />}
               </button> */}
               <button aria-label="Settings" onClick={onSettings}><Settings2 /></button>
+              <button aria-label={searchOpen ? 'Close search' : 'Search'} aria-expanded={searchOpen} onClick={() => {
+                if (searchOpen) {
+                  setSearchOpen(false)
+                  setQuery('')
+                } else {
+                  setSearchOpen(true)
+                }
+              }}><Search /></button>
             </div>
           </div>
           <h1 className="topbar-name">{name} <span className="wave">✦</span></h1>
-          <div className="top-search">
+          {searchOpen && <div className="top-search">
             <Search aria-hidden="true" />
             <input
+              ref={searchInputRef}
               aria-label="Search your data"
               placeholder="Search your data"
               value={query}
@@ -93,7 +109,7 @@ export function DashboardHeader({
                 ))}
               </div>
             )}
-          </div>
+          </div>}
         </div>
       </div>
     </header>

@@ -19,6 +19,7 @@ import { NotesView } from '@/components/dashboard/NotesView'
 import { SettingsView } from '@/components/dashboard/SettingsView'
 import { DashboardBottomNavigation, DashboardHeader, QuickAddSheet } from '@/components/dashboard/navigation'
 import { VaultView } from '@/components/vault/VaultView'
+import { getLocalBankLogoUrl, isAccountImage } from '@/lib/bank-logos'
 import { RecurringPayments } from '@/components/dashboard/RecurringPayments'
 import type { DashboardSearchItem } from '@/components/dashboard/types'
 import {
@@ -213,6 +214,34 @@ export default function Page() {
                       <div className="mini-bars expense"><i /><i /><i /><i /><i /><i /><i /></div>
                     </motion.div>
                   </section>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '18px 2px 10px' }}>
+                    <p className="eyebrow">SPENDING BREAKDOWN</p>
+                    <button className="text-button" onClick={() => setShowCategoryDetails(true)}>Details <ChevronRight /></button>
+                  </div>
+                  <section className="glass-panel categories-card">
+                    <div className="donut">
+                      <div className="donut-hole">
+                        <strong style={{ fontSize: 11 }}>{stats.expenses.amount.replace('NGN ', '')}</strong>
+                        <span>spent</span>
+                      </div>
+                    </div>
+                    <div className="category-list">
+                      {stats.categories.length === 0 ? (
+                        <p style={{ color: 'var(--muted)', fontSize: 10 }}>No expenses this month</p>
+                      ) : stats.categories.map((item) => (
+                        <div className="category-item" key={item.label}>
+                          <span className="category-name">
+                            <i style={{ background: toneColors[item.tone] }} />
+                            {item.label}
+                          </span>
+                          <strong>{item.value}</strong>
+                          <div className="category-bar">
+                            <motion.i initial={{ width: 0 }} animate={{ width: `${item.percent}%` }} transition={{ duration: .8 }} style={{ background: toneColors[item.tone], display: 'block', height: '100%', borderRadius: 10 }} />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
                     </motion.div>}
                   </AnimatePresence>
 
@@ -221,7 +250,7 @@ export default function Page() {
                   {/* Accounts */}
                   <SectionTitle
                     eyebrow="YOUR ACCOUNTS"
-                    title="Where your money lives"
+                    title=""
                     action={
                       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                         <button className="icon-button" onClick={() => setHideAccountAmounts(!hideAccountAmounts)} aria-label="Toggle account amounts">
@@ -246,7 +275,20 @@ export default function Page() {
                     <div className="account-row">
                       {accounts.filter((a) => !a.is_vault).map((acc, i) => (
                         <motion.article whileHover={{ y: -5 }} className={`account-card ${excludedAccounts.includes(acc.id) ? 'account-excluded' : ''}`} key={acc.id} id={`search-result-account-${acc.id}`}>
-                          <div className={`account-icon account-${acc.tone}`}>{acc.symbol}</div>
+                          <div className={`account-icon account-${acc.tone}`}>
+                            {isAccountImage(acc.symbol)
+                              ? <img
+                                src={acc.symbol}
+                                alt={`${acc.name} logo`}
+                                onError={(event) => {
+                                  const fallback = getLocalBankLogoUrl(acc.symbol)
+                                  if (fallback && !event.currentTarget.src.endsWith(fallback)) {
+                                    event.currentTarget.src = fallback
+                                  }
+                                }}
+                              />
+                              : acc.symbol}
+                          </div>
                           <p>{acc.name}</p>
                           <small>{acc.purpose}{acc.annual_interest > 0 ? ` · ${acc.annual_interest}% p.a.` : ''}</small>
                           <strong>{hideAccountAmounts || excludedAccounts.includes(acc.id) ? '••••' : fmt(acc.balance)}</strong>
@@ -283,7 +325,7 @@ export default function Page() {
                   {/* Lenders */}
                   <SectionTitle
                     eyebrow="MONEY OWED TO YOU"
-                    title="Your lenders"
+                    title=""
                     action={
                       <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                         <button className="icon-button" onClick={() => setHideLenderAmounts(!hideLenderAmounts)} aria-label={hideLenderAmounts ? 'Show lender amounts' : 'Hide lender amounts'}>
@@ -347,7 +389,7 @@ export default function Page() {
                   {/* Future Expenses */}
                   <SectionTitle
                     eyebrow="FUTURE EXPENSES"
-                    title="Planned spending"
+                    title=""
                     action={
                       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
                         <button className="text-button" onClick={() => openFutureExpense()}>+ Add <ChevronRight /></button>
@@ -403,7 +445,7 @@ export default function Page() {
                     </motion.div>}
                   </AnimatePresence>
 
-                    <SectionTitle
+                    {/* <SectionTitle
                     eyebrow="SPENDING FLOW"
                     title="Your activity"
                     action={
@@ -435,54 +477,12 @@ export default function Page() {
                     </div>
                   </section>
                     </motion.div>}
-                  </AnimatePresence>
-
-                  {/* Spending Breakdown */}
-                  <SectionTitle
-                    eyebrow="SPENDING BREAKDOWN"
-                    title="By category"
-                    action={
-                      <div style={{ display: 'flex', gap: 4 }}>
-                        <button className="text-button" onClick={() => setShowCategoryDetails(true)}>Details <ChevronRight /></button>
-                        <button className="icon-button" onClick={() => toggleCollapse('breakdown')} aria-label="Collapse">
-                          <ChevronDown style={{ width: 13, transform: collapsed['breakdown'] ? 'rotate(-90deg)' : 'none', transition: 'transform .2s' }} />
-                        </button>
-                      </div>
-                    }
-                  />
-                  <AnimatePresence initial={false}>
-                    {!collapsed['breakdown'] && <motion.div key="breakdown" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} style={{ overflow: 'hidden' }}>
-                  <section className="glass-panel categories-card">
-                    <div className="donut">
-                      <div className="donut-hole">
-                        <strong style={{ fontSize: 11 }}>{stats.expenses.amount.replace('NGN ', '')}</strong>
-                        <span>spent</span>
-                      </div>
-                    </div>
-                    <div className="category-list">
-                      {stats.categories.length === 0 ? (
-                        <p style={{ color: 'var(--muted)', fontSize: 10 }}>No expenses this month</p>
-                      ) : stats.categories.map((item) => (
-                        <div className="category-item" key={item.label}>
-                          <span className="category-name">
-                            <i style={{ background: toneColors[item.tone] }} />
-                            {item.label}
-                          </span>
-                          <strong>{item.value}</strong>
-                          <div className="category-bar">
-                            <motion.i initial={{ width: 0 }} animate={{ width: `${item.percent}%` }} transition={{ duration: .8 }} style={{ background: toneColors[item.tone], display: 'block', height: '100%', borderRadius: 10 }} />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </section>
-                    </motion.div>}
-                  </AnimatePresence>
+                  </AnimatePresence> */}
 
                   {/* Savings Goal */}
                   <SectionTitle
                     eyebrow="YOUR PLAN"
-                    title="Savings goal"
+                    title=""
                     action={
                       <button className="icon-button" onClick={() => toggleCollapse('savings-goal')} aria-label={collapsed['savings-goal'] ? 'Expand savings goal' : 'Collapse savings goal'}>
                         <ChevronDown style={{ width: 13, transform: collapsed['savings-goal'] ? 'rotate(-90deg)' : 'none', transition: 'transform .2s' }} />

@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Eye, EyeOff, Pencil, Plus, ShieldCheck, Trash2, Lock, Unlock } from 'lucide-react'
 import { fmt, type Account } from '@/lib/supabase/db'
 import { SectionTitle } from '@/components/dashboard/ui'
+import { getLocalBankLogoUrl, isAccountImage } from '@/lib/bank-logos'
 
 interface VaultViewProps {
   accounts: Account[]
@@ -26,14 +27,11 @@ export function VaultView({
 }: VaultViewProps) {
   const vaultAccounts = accounts.filter((a) => a.is_vault)
   const total = vaultAccounts.reduce((s, a) => s + a.balance, 0)
-  const visibleTotal = vaultAccounts.filter((a) => !a.vault_hidden).reduce((s, a) => s + a.balance, 0)
-  const hiddenTotal = vaultAccounts.filter((a) => a.vault_hidden).reduce((s, a) => s + a.balance, 0)
-
   return (
     <section className="notes-page">
       <SectionTitle
         eyebrow="VAULT"
-        title="Your precious savings"
+        title=""
         action={
           <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
             <button className="icon-button" onClick={onToggleHideAmounts} aria-label="Toggle amounts">
@@ -76,16 +74,6 @@ export function VaultView({
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 8 }}>
-          <div style={{ flex: 1, background: 'rgba(113,104,219,.08)', borderRadius: 12, padding: '8px 10px' }}>
-            <p style={{ margin: '0 0 2px', fontSize: 9, color: 'var(--muted)' }}>VISIBLE IN DASHBOARD</p>
-            <strong style={{ fontSize: 12, color: '#7168db' }}>{hideAmounts ? '••••' : fmt(visibleTotal)}</strong>
-          </div>
-          <div style={{ flex: 1, background: 'rgba(216,120,161,.08)', borderRadius: 12, padding: '8px 10px' }}>
-            <p style={{ margin: '0 0 2px', fontSize: 9, color: 'var(--muted)' }}>HIDDEN FROM DASHBOARD</p>
-            <strong style={{ fontSize: 12, color: '#d878a1' }}>{hideAmounts ? '••••' : fmt(hiddenTotal)}</strong>
-          </div>
-        </div>
       </motion.div>
 
       {vaultAccounts.length === 0 ? (
@@ -122,8 +110,19 @@ export function VaultView({
                     display: 'grid', placeItems: 'center',
                     fontSize: 16, fontWeight: 800, color: '#fff',
                     boxShadow: '0 4px 12px rgba(113,104,219,.3)',
-                  }}>
-                    {acc.symbol}
+                  }} className="account-mark">
+                    {isAccountImage(acc.symbol)
+                      ? <img
+                        src={acc.symbol}
+                        alt={`${acc.name} logo`}
+                        onError={(event) => {
+                          const fallback = getLocalBankLogoUrl(acc.symbol)
+                          if (fallback && !event.currentTarget.src.endsWith(fallback)) {
+                            event.currentTarget.src = fallback
+                          }
+                        }}
+                      />
+                      : acc.symbol}
                   </div>
 
                   <div style={{ flex: 1, minWidth: 0 }}>

@@ -90,7 +90,7 @@ export function BudgetManager({ budgets, transactions, month, year, onSave, onDe
 
   return (
     <section className="budget-manager">
-      <SectionTitle eyebrow="MONTHLY PLAN" title="Category budgets" />
+      <SectionTitle eyebrow="MONTHLY PLAN" title="" />
       <div className="budget-summary">
         <div className="glass-panel budget-summary-card">
           <span>Total budget</span>

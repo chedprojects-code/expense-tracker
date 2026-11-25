@@ -1,9 +1,11 @@
 'use client'
 import { useEffect, useState } from 'react'
+import type { Dispatch, SetStateAction } from 'react'
 import { motion } from 'framer-motion'
-import { Save, X } from 'lucide-react'
+import { Loader2, Save, X } from 'lucide-react'
 import type { NoteDraft, AccountDraft, TxDraft, LenderDraft, FutureExpenseDraft, RecurringDraft } from './types'
 import type { Account, BuyListItem, FutureExpense } from '@/lib/supabase/db'
+import { BANK_LOGOS, getBankLogoUrl, isAccountImage, uploadBankLogos } from '@/lib/bank-logos'
 
 const CATEGORIES = ['Food & snacks', 'Transport', 'Outings', 'Data & airtime', 'Utilities', 'Shopping', 'Health', 'Other']
 const INCOME_CATEGORIES = ['Salary', 'Freelance', 'Gift', 'Investment', 'Other']
@@ -52,11 +54,46 @@ export function NoteDialog({ open, draft, setDraft, onSave, onClose, isEditing }
 export function AccountDialog({ open, draft, setDraft, onSave, onClose, isEditing }: {
   open: boolean
   draft: AccountDraft
-  setDraft: (d: AccountDraft) => void
+  setDraft: Dispatch<SetStateAction<AccountDraft>>
   onSave: () => void
   onClose: () => void
   isEditing: boolean
 }) {
+  const [uploadingLogos, setUploadingLogos] = useState(false)
+  const [logoUploadMessage, setLogoUploadMessage] = useState('')
+  const [logoUploadError, setLogoUploadError] = useState('')
+  const logoOptions = BANK_LOGOS.map((logo) => ({
+    ...logo,
+    url: getBankLogoUrl(logo.fileName),
+  }))
+  const selectedLogo = logoOptions.find((logo) => logo.url === draft.symbol)
+  const hasCurrentLogo = selectedLogo !== undefined
+
+  useEffect(() => {
+    if (open) {
+      setLogoUploadMessage('')
+      setLogoUploadError('')
+    }
+  }, [open])
+
+  const handleUploadLogos = async () => {
+    setUploadingLogos(true)
+    setLogoUploadMessage('')
+    setLogoUploadError('')
+
+    try {
+      const result = await uploadBankLogos()
+      setLogoUploadMessage(result.uploaded === 0
+        ? 'All bank logos are already uploaded.'
+        : `Uploaded ${result.uploaded} of ${result.total} bank logos.`)
+    } catch (error) {
+      console.error('[uploadBankLogos]', error)
+      setLogoUploadError(error instanceof Error ? error.message : 'Could not upload bank logos.')
+    } finally {
+      setUploadingLogos(false)
+    }
+  }
+
   if (!open) return null
   return (
     <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: .18 }}>
@@ -73,7 +110,43 @@ export function AccountDialog({ open, draft, setDraft, onSave, onClose, isEditin
         <label>Purpose<input value={draft.purpose} onChange={(e) => setDraft({ ...draft, purpose: e.target.value })} placeholder="e.g. Airtime & Bills" /></label>
         <label>Balance (NGN)<input required type="number" step="0.01" value={draft.balance} onChange={(e) => setDraft({ ...draft, balance: e.target.value })} placeholder="0" inputMode="decimal" /></label>
         <label>Annual Interest Rate (%)<input type="number" min="0" step="0.01" value={draft.annual_interest} onChange={(e) => setDraft({ ...draft, annual_interest: e.target.value })} placeholder="e.g. 12.5" inputMode="decimal" /></label>
-        <label>Symbol<input value={draft.symbol} onChange={(e) => setDraft({ ...draft, symbol: e.target.value })} placeholder="₦" maxLength={2} /></label>
+        <label>Bank image
+          <select
+            value={isAccountImage(draft.symbol) ? draft.symbol : ''}
+            onChange={(event) => setDraft({ ...draft, symbol: event.target.value || '₦' })}
+          >
+            <option value="">Use fallback symbol</option>
+            {isAccountImage(draft.symbol) && !hasCurrentLogo && (
+              <option value={draft.symbol}>Current account image</option>
+            )}
+            {logoOptions.map((logo) => (
+              <option key={logo.fileName} value={logo.url}>{logo.label}</option>
+            ))}
+          </select>
+        </label>
+        <button
+          type="button"
+          className="text-button"
+          onClick={handleUploadLogos}
+          disabled={uploadingLogos}
+          aria-busy={uploadingLogos}
+        >
+          {uploadingLogos ? <Loader2 className="animate-spin" /> : null}
+          Upload bank logos to Supabase
+        </button>
+        {logoUploadMessage && <p role="status" style={{ color: '#18ad99', fontSize: 10, margin: 0 }}>{logoUploadMessage}</p>}
+        {logoUploadError && <p role="alert" style={{ color: '#b33', fontSize: 10, margin: 0 }}>{logoUploadError}</p>}
+        <label>Fallback symbol<input value={isAccountImage(draft.symbol) ? '' : draft.symbol} onChange={(e) => setDraft({ ...draft, symbol: e.target.value })} placeholder="₦" maxLength={2} /></label>
+        {isAccountImage(draft.symbol) && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 10, color: 'var(--muted)' }}>
+            <img
+              src={selectedLogo ? `/banks/${selectedLogo.fileName}` : draft.symbol}
+              alt="Selected bank logo preview"
+              style={{ width: 36, height: 36, objectFit: 'cover', borderRadius: 10 }}
+            />
+            <span>Bank image selected</span>
+          </div>
+        )}
         <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
           <input type="checkbox" checked={draft.is_vault} onChange={(e) => setDraft({ ...draft, is_vault: e.target.checked })} style={{ width: 16, height: 16 }} />
           <span>Mark as Vault account <small style={{ color: 'var(--muted)', fontSize: 10 }}>(most precious savings)</small></span>

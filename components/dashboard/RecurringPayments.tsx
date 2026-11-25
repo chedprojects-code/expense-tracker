@@ -33,7 +33,7 @@ export function RecurringPayments({ rules, accounts, collapsed, onToggleCollapse
     <section>
       <SectionTitle
         eyebrow="RECURRING"
-        title="Income & bills"
+        title=""
         action={
           <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
             <button className="text-button" onClick={onAdd}><Plus style={{ width: 13 }} /> Add</button>

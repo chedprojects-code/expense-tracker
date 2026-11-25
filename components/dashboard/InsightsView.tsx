@@ -27,7 +27,7 @@ export function InsightsView({ stats, transactions, accounts, month, year, budge
 
   return (
     <section className="notes-page">
-      <SectionTitle eyebrow="INSIGHTS" title="Your patterns" />
+      <SectionTitle eyebrow="INSIGHTS" title="" />
       <div className="stat-grid" style={{ marginBottom: 12 }}>
         <div className="glass-panel stat-card">
           <p style={{ color: 'var(--muted)', fontSize: 10, margin: '0 0 4px' }}>Net this month</p>

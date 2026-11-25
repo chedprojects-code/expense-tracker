@@ -1,0 +1,9 @@
+[
+  { "label": "ALAT", "fileName": "alat.jpg" },
+  { "label": "Moniepoint", "fileName": "moniepoint.jpg" },
+  { "label": "OPay", "fileName": "opay.png" },
+  { "label": "PalmPay", "fileName": "palmpay.png" },
+  { "label": "PiggyVest", "fileName": "piggy.png" },
+  { "label": "Pocket", "fileName": "pocket.png" },
+  { "label": "Smartcash", "fileName": "smartcash.png" }
+]
