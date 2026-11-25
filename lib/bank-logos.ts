@@ -36,8 +36,8 @@ export function getBankLogoUrl(fileName: string): string {
   return `${supabaseUrl.replace(/\/+$/, '')}/storage/v1/object/public/${BANK_LOGO_BUCKET}/${fileName}`
 }
 
-export function isAccountImage(symbol: string): boolean {
-  return symbol.startsWith('data:image/') || /^https?:\/\//.test(symbol)
+export function isAccountImage(symbol: string | null | undefined): boolean {
+  return typeof symbol === 'string' && (symbol.startsWith('data:image/') || /^https?:\/\//.test(symbol))
 }
 
 export function getLocalBankLogoUrl(symbol: string): string | undefined {

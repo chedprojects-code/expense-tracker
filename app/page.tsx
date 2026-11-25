@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { fmt } from '@/lib/supabase/db'
 import { formatLocalDate, parseLocalDate } from '@/lib/date-utils'
 import {
-  NoteDialog, AccountDialog, TxDialog, LenderDialog, FutureExpenseDialog,
+  NoteDialog, AccountDialog, TxDialog, LenderDialog, LenderRepaymentDialog, FutureExpenseDialog,
   PurchaseDialog, FutureExpensePaymentDialog, RecurringDialog,
 } from '@/components/dashboard/dialogs'
 import {
@@ -36,7 +36,7 @@ export default function Page() {
     showNotifications, setShowNotifications, showHelp, setShowHelp,
     showCategoryDetails, setShowCategoryDetails, showSpendingFlow, setShowSpendingFlow,
     showAdd, setShowAdd,
-    showNoteDialog, noteDraft, setNoteDraft, editingNote, openNote, closeNote, saveNote, removeNote, reorderNotes,
+    showNoteDialog, noteDraft, setNoteDraft, editingNote, openNote, closeNote, saveNote, removeNote, reorderNotes, setFinancialNoteFlags,
     showAccountDialog, accountDraft, setAccountDraft, editingAccount, openAccount, closeAccount, saveAccount, removeAccount,
     showTxDialog, setShowTxDialog, txDraft, setTxDraft, editingTx, openTx, saveTx, removeTx,
     goalDraft, setGoalDraft, saveGoal, profileDraft, setProfileDraft, savingProfile, saveProfile,
@@ -44,6 +44,7 @@ export default function Page() {
     stats, chart: { incLine, expLine, incArea, dayLabels }, netWorth, netAfterFuture, spendableWorth, spendableAfterFuture, goalPercent, unreadCount,
     lenders, totalLent,
     showLenderDialog, lenderDraft, setLenderDraft, editingLender, openLender, closeLender, saveLender, removeLender,
+    lenderToRepay, openLenderRepayment, closeLenderRepayment, saveLenderRepayment,
     hideAccountAmounts, setHideAccountAmounts,
     hideLenderAmounts, setHideLenderAmounts,
     collapsed, toggleCollapse,
@@ -52,7 +53,7 @@ export default function Page() {
     futureExpenses, totalFutureExpenses,
     showFutureExpenseDialog, futureExpenseDraft, setFutureExpenseDraft, editingFutureExpense,
     openFutureExpense, closeFutureExpense, saveFutureExpense, removeFutureExpense,
-    plainNotes, savePlainNote, removePlainNote, reorderPlainNotes,
+    plainNotes, savePlainNote, removePlainNote, reorderPlainNotes, setPlainNoteFlags,
     buyListItems, addBuyListItem, toggleBuyListItem, editBuyListItem, removeBuyListItem, reorderBuyListItems,
     purchaseItem, setPurchaseItem, saveBuyListPurchase,
     futureExpenseToPay, setFutureExpenseToPay, settleFutureExpenseAction,
@@ -90,11 +91,6 @@ export default function Page() {
 
   return (
     <main className={`app-shell ${dark ? 'dark-mode' : ''}`}>
-      <div className="ambient ambient-one" /><div className="ambient ambient-two" />
-      <div className="floating-money money-one">₦</div>
-      <div className="floating-money money-two">$</div>
-      <div className="floating-money money-three">+</div>
-
       <section className="phone-frame">
         <DashboardHeader
           initials={profile?.initials ?? user.email?.[0]?.toUpperCase() ?? '?'}
@@ -202,7 +198,7 @@ export default function Page() {
                       </div>
                       <p>Income</p>
                       <strong>{stats.income.amount}</strong>
-                      <div className="mini-bars"><i /><i /><i /><i /><i /><i /><i /></div>
+                      {/* <div className="mini-bars"><i /><i /><i /><i /><i /><i /><i /></div> */}
                     </motion.div>
                     <motion.div className="glass-panel stat-card" whileHover={{ y: -4 }}>
                       <div className="stat-top">
@@ -211,7 +207,7 @@ export default function Page() {
                       </div>
                       <p>Expenses</p>
                       <strong>{stats.expenses.amount}</strong>
-                      <div className="mini-bars expense"><i /><i /><i /><i /><i /><i /><i /></div>
+                      {/* <div className="mini-bars expense"><i /><i /><i /><i /><i /><i /><i /></div> */}
                     </motion.div>
                   </section>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '18px 2px 10px' }}>
@@ -275,32 +271,37 @@ export default function Page() {
                     <div className="account-row">
                       {accounts.filter((a) => !a.is_vault).map((acc, i) => (
                         <motion.article whileHover={{ y: -5 }} className={`account-card ${excludedAccounts.includes(acc.id) ? 'account-excluded' : ''}`} key={acc.id} id={`search-result-account-${acc.id}`}>
-                          <div className={`account-icon account-${acc.tone}`}>
-                            {isAccountImage(acc.symbol)
-                              ? <img
-                                src={acc.symbol}
-                                alt={`${acc.name} logo`}
-                                onError={(event) => {
-                                  const fallback = getLocalBankLogoUrl(acc.symbol)
-                                  if (fallback && !event.currentTarget.src.endsWith(fallback)) {
-                                    event.currentTarget.src = fallback
-                                  }
-                                }}
-                              />
-                              : acc.symbol}
+                          <div className="account-card-top">
+                            <div className={`account-icon account-${acc.tone}`}>
+                              {isAccountImage(acc.symbol)
+                                ? <img
+                                  src={acc.symbol}
+                                  alt={`${acc.name} logo`}
+                                  onError={(event) => {
+                                    const fallback = getLocalBankLogoUrl(acc.symbol)
+                                    if (fallback && !event.currentTarget.src.endsWith(fallback)) {
+                                      event.currentTarget.src = fallback
+                                    }
+                                  }}
+                                />
+                                : acc.symbol}
+                            </div>
+                            <span className={`account-card-status ${excludedAccounts.includes(acc.id) ? 'excluded' : ''}`}>
+                              {excludedAccounts.includes(acc.id) ? 'Excluded' : 'In total'}
+                            </span>
                           </div>
-                          <p>{acc.name}</p>
-                          <small>{acc.purpose}{acc.annual_interest > 0 ? ` · ${acc.annual_interest}% p.a.` : ''}</small>
-                          <strong>{hideAccountAmounts || excludedAccounts.includes(acc.id) ? '••••' : fmt(acc.balance)}</strong>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 11 }}>
-                            <div className="account-dots"><i /><i /><i /></div>
-                            <div style={{ display: 'flex', gap: 4 }}>
-                              <button onClick={() => toggleExcludeAccount(acc.id)} style={{ background: 'none', padding: 2 }} title={excludedAccounts.includes(acc.id) ? 'Include in total' : 'Exclude from total'}>
+                          <p className="account-card-name">{acc.name}</p>
+                          <small className="account-card-purpose">{acc.purpose}{acc.annual_interest > 0 ? ` · ${acc.annual_interest}% p.a.` : ''}</small>
+                          <div className="account-card-balance">
+                            <span>Current balance</span>
+                            <strong>{hideAccountAmounts || excludedAccounts.includes(acc.id) ? '••••' : fmt(acc.balance)}</strong>
+                          </div>
+                          <div className="account-card-actions">
+                              <button className="account-action-button" onClick={() => toggleExcludeAccount(acc.id)} title={excludedAccounts.includes(acc.id) ? 'Include in total' : 'Exclude from total'} aria-label={excludedAccounts.includes(acc.id) ? `Include ${acc.name} in total` : `Exclude ${acc.name} from total`}>
                                 {excludedAccounts.includes(acc.id) ? <EyeOff style={{ width: 11, color: '#d878a1' }} /> : <Eye style={{ width: 11, color: 'var(--muted)' }} />}
                               </button>
-                              <button onClick={() => openAccount(acc)} style={{ background: 'none', padding: 2 }}><Pencil style={{ width: 11, color: 'var(--muted)' }} /></button>
-                              <button onClick={() => removeAccount(acc.id)} style={{ background: 'none', padding: 2 }}><Trash2 style={{ width: 11, color: 'var(--muted)' }} /></button>
-                            </div>
+                              <button className="account-action-button" onClick={() => openAccount(acc)} title={`Edit ${acc.name}`} aria-label={`Edit ${acc.name}`}><Pencil style={{ width: 12, color: 'var(--muted)' }} /></button>
+                              <button className="account-action-button" onClick={() => removeAccount(acc.id)} title={`Delete ${acc.name}`} aria-label={`Delete ${acc.name}`}><Trash2 style={{ width: 12, color: 'var(--muted)' }} /></button>
                           </div>
                         </motion.article>
                       ))}
@@ -356,16 +357,20 @@ export default function Page() {
                             )}
                           </div>
                           {lenders.map((lender) => (
-                            <motion.div layout key={lender.id} className="lender-row" id={`search-result-lender-${lender.id}`}>
+                            <motion.div layout key={lender.id} className="lender-row lender-debt-row" id={`search-result-lender-${lender.id}`}>
                               <div className="lender-avatar">{lender.name[0].toUpperCase()}</div>
                               <div className="lender-info">
                                 <p>{lender.name}</p>
-                                {lender.note && <small>{lender.note}</small>}
+                                <small>
+                                  {lender.note ? `${lender.note} · ` : ''}
+                                  Lent from {accounts.find((account) => account.id === lender.account_id)?.name ?? 'unlinked account'}
+                                </small>
                               </div>
                               <strong className="lender-amount" style={{ color: hiddenLenders.includes(lender.id) ? 'var(--muted)' : undefined }}>
                                 {hideLenderAmounts || hiddenLenders.includes(lender.id) ? '••••' : fmt(lender.amount)}
                               </strong>
                               <div className="lender-actions">
+                                <button className="lender-repay-button" onClick={() => openLenderRepayment(lender)} aria-label={`Record repayment from ${lender.name}`}>Repay</button>
                                 <button
                                   onClick={() => toggleHideLender(lender.id)}
                                   title={hiddenLenders.includes(lender.id) ? 'Reveal from net worth' : 'Hide from net worth'}
@@ -549,10 +554,12 @@ export default function Page() {
                     onEdit={openNote}
                     onDelete={removeNote}
                     onReorderNotes={reorderNotes}
+                    onSetFinancialNoteFlags={setFinancialNoteFlags}
                     plainNotes={plainNotes}
                     onSavePlainNote={savePlainNote}
                     onDeletePlainNote={removePlainNote}
                     onReorderPlainNotes={reorderPlainNotes}
+                    onSetPlainNoteFlags={setPlainNoteFlags}
                     buyListItems={buyListItems}
                     onAddBuyItem={addBuyListItem}
                     onToggleBuyItem={toggleBuyListItem}
@@ -627,7 +634,8 @@ export default function Page() {
         <AccountDialog open={showAccountDialog} draft={accountDraft} setDraft={setAccountDraft} onSave={saveAccount} onClose={closeAccount} isEditing={editingAccount !== null} />
         <TxDialog open={showTxDialog} draft={txDraft} setDraft={setTxDraft} onSave={saveTx} onClose={() => { setShowTxDialog(false) }} isEditing={editingTx !== null} accounts={accounts} />
         <FutureExpenseDialog open={showFutureExpenseDialog} draft={futureExpenseDraft} setDraft={setFutureExpenseDraft} onSave={saveFutureExpense} onClose={closeFutureExpense} isEditing={editingFutureExpense !== null} />
-        <LenderDialog open={showLenderDialog} draft={lenderDraft} setDraft={setLenderDraft} onSave={saveLender} onClose={closeLender} isEditing={editingLender !== null} />
+        <LenderDialog open={showLenderDialog} draft={lenderDraft} setDraft={setLenderDraft} onSave={saveLender} onClose={closeLender} isEditing={editingLender !== null} accounts={accounts} />
+        <LenderRepaymentDialog lender={lenderToRepay} accounts={accounts} hideAmount={hideLenderAmounts} onSave={saveLenderRepayment} onClose={closeLenderRepayment} />
         <PurchaseDialog
           open={purchaseItem !== null}
           item={purchaseItem}

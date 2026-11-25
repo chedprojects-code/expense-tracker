@@ -5,14 +5,29 @@ import { formatLocalDate } from '@/lib/date-utils'
 
 export function createNoteDraft(note?: Note): NoteDraft {
   if (note) {
-    return { title: note.title, amount: String(note.amount), amount_max: note.amount_max != null ? String(note.amount_max) : '', due_date: note.due_date, category: note.category }
+    return {
+      title: note.title,
+      amount: String(note.amount),
+      amount_max: note.amount_max != null ? String(note.amount_max) : '',
+      due_date: note.due_date,
+      category: note.category,
+      tags: note.tags ?? [],
+    }
   }
-  return { title: '', amount: '', amount_max: '', due_date: '', category: 'Want' }
+  return { title: '', amount: '', amount_max: '', due_date: '', category: 'Want', tags: [] }
 }
 
 export function createAccountDraft(account?: Account): AccountDraft {
   if (account) {
-    return { name: account.name, purpose: account.purpose, balance: String(account.balance), tone: account.tone, symbol: account.symbol, annual_interest: String(account.annual_interest ?? 0), is_vault: account.is_vault ?? false }
+    return {
+      name: account.name ?? '',
+      purpose: account.purpose ?? '',
+      balance: account.balance == null ? '' : String(account.balance),
+      tone: account.tone ?? 'violet',
+      symbol: account.symbol ?? '₦',
+      annual_interest: String(account.annual_interest ?? 0),
+      is_vault: account.is_vault ?? false,
+    }
   }
   return { name: '', purpose: '', balance: '', tone: 'violet', symbol: '₦', annual_interest: '0', is_vault: false }
 }
@@ -67,8 +82,15 @@ export function createProfileDraft(profile?: { name: string; initials: string })
 }
 
 export function createLenderDraft(lender?: Lender): LenderDraft {
-  if (lender) return { name: lender.name, amount: String(lender.amount), note: lender.note }
-  return { name: '', amount: '', note: '' }
+  if (lender) {
+    return {
+      name: lender.name ?? '',
+      amount: lender.amount == null ? '' : String(lender.amount),
+      note: lender.note ?? '',
+      account_id: lender.account_id ?? '',
+    }
+  }
+  return { name: '', amount: '', note: '', account_id: '' }
 }
 
 export function createFutureExpenseDraft(item?: FutureExpense): FutureExpenseDraft {

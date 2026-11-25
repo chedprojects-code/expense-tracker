@@ -4,12 +4,12 @@ import { useAuth } from '@/components/auth/AuthProvider'
 import {
   getProfile, getAccounts, getTransactions, getNotes, getSavingsGoal,
   getNotifications, markNotificationsRead,
-  upsertNote, deleteNote,
+  upsertNote, deleteNote, updateNoteFlags,
   upsertAccount, deleteAccount, updateAccountVaultVisibility,
   upsertSavingsGoal, saveTransaction, deleteTransaction, updateProfile,
-  getLenders, upsertLender, deleteLender,
+  getLenders, upsertLender, deleteLender, recordLenderRepayment as recordLenderRepaymentDb,
   getFutureExpenses, upsertFutureExpense, deleteFutureExpense, settleFutureExpense,
-  getPlainNotes, upsertPlainNote, deletePlainNote,
+  getPlainNotes, upsertPlainNote, deletePlainNote, updatePlainNoteFlags,
   getBuyListItems, insertBuyListItem, updateBuyListItem, deleteBuyListItem, purchaseBuyListItem, unpurchaseBuyListItem,
   getRecurringTransactions, upsertRecurringTransaction, deleteRecurringTransaction, recordRecurringTransaction,
   getMonthlyBudgets, upsertMonthlyBudget, deleteMonthlyBudget,
@@ -102,6 +102,7 @@ export function useExpenseData() {
   const [showLenderDialog, setShowLenderDialog] = useState(false)
   const [editingLender, setEditingLender] = useState<Lender | null>(null)
   const [lenderDraft, setLenderDraft] = useState<LenderDraft>(() => createLenderDraft())
+  const [lenderToRepay, setLenderToRepay] = useState<Lender | null>(null)
 
   const [showFutureExpenseDialog, setShowFutureExpenseDialog] = useState(false)
   const [editingFutureExpense, setEditingFutureExpense] = useState<FutureExpense | null>(null)
@@ -318,6 +319,9 @@ export function useExpenseData() {
         category: noteDraft.category,
         updated_at: new Date().toISOString(),
         sort_order: editingNote?.sort_order ?? notes.length,
+        tags: noteDraft.tags,
+        pinned: editingNote?.pinned ?? false,
+        archived: editingNote?.archived ?? false,
       })
       setNotes((prev) =>
         editingNote ? prev.map((x) => x.id === saved.id ? saved : x) : [...prev, saved]
@@ -328,6 +332,16 @@ export function useExpenseData() {
       setActionError('Could not save this note. Please try again.')
     }
   }, [noteDraft, editingNote, user, closeNote, notes.length])
+
+  const setFinancialNoteFlags = useCallback(async (id: string, updates: { pinned?: boolean; archived?: boolean }) => {
+    try {
+      const saved = await updateNoteFlags(id, updates)
+      setNotes((prev) => prev.map((note) => note.id === saved.id ? saved : note))
+    } catch (err) {
+      console.error('[setFinancialNoteFlags]', err)
+      setActionError('Could not update this note. Please try again.')
+    }
+  }, [])
 
   const removeNote = useCallback(async (id: string) => {
     try {
@@ -539,33 +553,67 @@ export function useExpenseData() {
   }, [])
 
   const saveLender = useCallback(async () => {
-    if (!user || !isFormValid(lenderDraft, ['name', 'amount'])) return
+    if (!user || !isFormValid(lenderDraft, ['name', 'amount', 'account_id'])) return
     const amount = Number(lenderDraft.amount)
     if (!Number.isFinite(amount) || amount <= 0) {
       setActionError('Enter an amount owed greater than zero.')
       return
     }
     try {
-      const saved: Lender = {
+      const saved = await upsertLender({
         id: editingLender?.id ?? generateId(),
         user_id: user.id,
         name: lenderDraft.name,
         amount,
         note: lenderDraft.note,
-        created_at: editingLender?.created_at ?? new Date().toISOString(),
-      }
-      await upsertLender(saved)
+        account_id: lenderDraft.account_id,
+      })
       setLenders((prev) =>
         editingLender ? prev.map((x) => x.id === saved.id ? saved : x) : [saved, ...prev]
       )
       closeLender()
+      try {
+        await refreshAccounts()
+      } catch (refreshError) {
+        console.error('[saveLender.refreshAccounts]', refreshError)
+        setActionError('Lender saved, but account balances could not be refreshed. Please reload the dashboard.')
+      }
     } catch (err) {
       console.error('[saveLender]', err)
       setActionError('Could not save this lender. Please try again.')
     }
-  }, [lenderDraft, editingLender, user, closeLender])
+  }, [lenderDraft, editingLender, user, closeLender, refreshAccounts])
+
+  const openLenderRepayment = useCallback((lender: Lender) => {
+    setLenderToRepay(lender)
+  }, [])
+
+  const closeLenderRepayment = useCallback(() => {
+    setLenderToRepay(null)
+  }, [])
+
+  const saveLenderRepayment = useCallback(async (lenderId: string, accountId: string) => {
+    const lender = lenders.find((item) => item.id === lenderId)
+    if (!user || !lender) return
+    try {
+      await recordLenderRepaymentDb(lenderId, accountId)
+      setLenders((prev) => prev.filter((item) => item.id !== lenderId))
+      setLenderToRepay(null)
+      try {
+        await refreshAccounts()
+      } catch (refreshError) {
+        console.error('[saveLenderRepayment.refreshAccounts]', refreshError)
+        setActionError('Repayment recorded, but account balances could not be refreshed. Please reload the dashboard.')
+      }
+    } catch (err) {
+      console.error('[saveLenderRepayment]', err)
+      setActionError('Could not record this repayment. Please try again.')
+    }
+  }, [lenders, user, refreshAccounts])
 
   const removeLender = useCallback(async (id: string) => {
+    const lender = lenders.find((item) => item.id === id)
+    if (!lender || !window.confirm(`Delete ${lender.name}? This removes the outstanding receivable from your net worth but does not change any account balance.`)) return
     try {
       await deleteLender(id)
       setLenders((prev) => prev.filter((x) => x.id !== id))
@@ -573,7 +621,7 @@ export function useExpenseData() {
       console.error('[removeLender]', err)
       setActionError('Could not delete this lender. Please try again.')
     }
-  }, [])
+  }, [lenders])
 
   // ── Future Expenses CRUD ─────────────────────────────────────────────────────────
   const openFutureExpense = useCallback((item?: FutureExpense) => {
@@ -825,9 +873,10 @@ export function useExpenseData() {
   }, [])
 
   // ── Plain Notes CRUD ──────────────────────────────────────────────────────────────
-  const savePlainNote = useCallback(async (id: string | null, title: string, body: string) => {
+  const savePlainNote = useCallback(async (id: string | null, title: string, body: string, tags: string[], dueDate: string | null) => {
     if (!user) return
     try {
+      const existing = id ? plainNotes.find((note) => note.id === id) : undefined
       const saved = await upsertPlainNote({
         id: id ?? generateId(),
         user_id: user.id,
@@ -835,6 +884,10 @@ export function useExpenseData() {
         body,
         updated_at: new Date().toISOString(),
         sort_order: id ? plainNotes.find((note) => note.id === id)?.sort_order ?? plainNotes.length : plainNotes.length,
+        due_date: dueDate,
+        tags,
+        pinned: existing?.pinned ?? false,
+        archived: existing?.archived ?? false,
       })
       setPlainNotes((prev) =>
         id ? prev.map((x) => x.id === saved.id ? saved : x) : [...prev, saved]
@@ -844,6 +897,16 @@ export function useExpenseData() {
       setActionError('Could not save this note. Please try again.')
     }
   }, [user, plainNotes])
+
+  const setPlainNoteFlags = useCallback(async (id: string, updates: { pinned?: boolean; archived?: boolean }) => {
+    try {
+      const saved = await updatePlainNoteFlags(id, updates)
+      setPlainNotes((prev) => prev.map((note) => note.id === saved.id ? saved : note))
+    } catch (err) {
+      console.error('[setPlainNoteFlags]', err)
+      setActionError('Could not update this note. Please try again.')
+    }
+  }, [])
 
   const removePlainNote = useCallback(async (id: string) => {
     try {
@@ -945,7 +1008,7 @@ export function useExpenseData() {
     showAdd, setShowAdd,
     // notes
     showNoteDialog, noteDraft, setNoteDraft, editingNote,
-    openNote, closeNote, saveNote, removeNote, reorderNotes,
+    openNote, closeNote, saveNote, removeNote, reorderNotes, setFinancialNoteFlags,
     // account dialog
     showAccountDialog, accountDraft, setAccountDraft, editingAccount,
     openAccount, closeAccount, saveAccount, removeAccount,
@@ -973,13 +1036,14 @@ export function useExpenseData() {
     lenders, totalLent,
     showLenderDialog, lenderDraft, setLenderDraft, editingLender,
     openLender, closeLender, saveLender, removeLender,
+    lenderToRepay, openLenderRepayment, closeLenderRepayment, saveLenderRepayment,
     // future expenses
     futureExpenses, totalFutureExpenses,
     showFutureExpenseDialog, futureExpenseDraft, setFutureExpenseDraft, editingFutureExpense,
     openFutureExpense, closeFutureExpense, saveFutureExpense, removeFutureExpense,
     futureExpenseToPay, setFutureExpenseToPay, settleFutureExpenseAction,
     // plain notes
-    plainNotes, savePlainNote, removePlainNote, reorderPlainNotes,
+    plainNotes, savePlainNote, removePlainNote, reorderPlainNotes, setPlainNoteFlags,
     // buy list
     buyListItems, addBuyListItem, toggleBuyListItem, editBuyListItem, removeBuyListItem, reorderBuyListItems,
     purchaseItem, setPurchaseItem, saveBuyListPurchase,

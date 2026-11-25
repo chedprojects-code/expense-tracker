@@ -50,6 +50,9 @@ export type Note = {
   updated_at: string
   created_at: string
   sort_order: number
+  tags: string[]
+  pinned: boolean
+  archived: boolean
 }
 
 export type PlainNote = {
@@ -60,6 +63,10 @@ export type PlainNote = {
   created_at: string
   updated_at: string
   sort_order: number
+  due_date: string | null
+  tags: string[]
+  pinned: boolean
+  archived: boolean
 }
 
 export type SavingsGoal = {
@@ -318,6 +325,13 @@ export async function upsertNote(note: Omit<Note, 'created_at'>): Promise<Note> 
   return data
 }
 
+export async function updateNoteFlags(id: string, updates: { pinned?: boolean; archived?: boolean }): Promise<Note> {
+  const supabase = createClient()
+  const { data, error } = await supabase.from('notes').update(updates).eq('id', id).select().single()
+  throwOnSupabaseError(error)
+  return data
+}
+
 // ─── Plain Notes ──────────────────────────────────────────────────────────────
 export async function getPlainNotes(userId: string): Promise<PlainNote[]> {
   const supabase = createClient()
@@ -341,6 +355,13 @@ export async function updatePlainNotesSortOrder(items: { id: string; sort_order:
 export async function upsertPlainNote(note: Omit<PlainNote, 'created_at'>): Promise<PlainNote> {
   const supabase = createClient()
   const { data, error } = await supabase.from('plain_notes').upsert({ ...note, updated_at: new Date().toISOString() }).select().single()
+  throwOnSupabaseError(error)
+  return data
+}
+
+export async function updatePlainNoteFlags(id: string, updates: { pinned?: boolean; archived?: boolean }): Promise<PlainNote> {
+  const supabase = createClient()
+  const { data, error } = await supabase.from('plain_notes').update(updates).eq('id', id).select().single()
   throwOnSupabaseError(error)
   return data
 }
@@ -397,6 +418,7 @@ export type Lender = {
   name: string
   amount: number
   note: string
+  account_id: string | null
   created_at: string
 }
 
@@ -407,9 +429,25 @@ export async function getLenders(userId: string): Promise<Lender[]> {
   return data ?? []
 }
 
-export async function upsertLender(lender: Omit<Lender, 'created_at'>) {
+export async function upsertLender(lender: Omit<Lender, 'created_at'>): Promise<Lender> {
   const supabase = createClient()
-  const { error } = await supabase.from('lenders').upsert(lender)
+  const { data, error } = await supabase.rpc('save_lender', {
+    p_id: lender.id,
+    p_name: lender.name,
+    p_amount: lender.amount,
+    p_note: lender.note,
+    p_account_id: lender.account_id,
+  })
+  throwOnSupabaseError(error)
+  return data
+}
+
+export async function recordLenderRepayment(lenderId: string, accountId: string) {
+  const supabase = createClient()
+  const { error } = await supabase.rpc('record_lender_repayment', {
+    p_lender_id: lenderId,
+    p_account_id: accountId,
+  })
   throwOnSupabaseError(error)
 }
 

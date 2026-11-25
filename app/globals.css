@@ -192,10 +192,8 @@ button { border:0; font:inherit; color:inherit; cursor:pointer; }
 .dark-mode .tone-gold { background: #3a2a10; color: #f6c96a; }
 
 @media (max-width: 480px) {
-  .account-row { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; overflow-x: visible; }
-  .account-card { min-width: 0; padding: 6px; }
-  .account-card p { margin-top: 8px; }
-  .account-card strong { margin-top: 9px; }
+  .account-row { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; overflow-x: visible; }
+  .account-card { min-width: 0; padding: 7px; }
   .buy-add-row { flex-wrap: wrap; }
   .buy-price-input { flex: 1 1 0; min-width: 0; }
 }
@@ -536,4 +534,662 @@ button { border:0; font:inherit; color:inherit; cursor:pointer; }
   opacity: 0.45;
   outline: 2px dashed var(--accent, #7168db);
   outline-offset: 2px;
+}
+
+/* ── Desktop dashboard ───────────────────────────────────────────────────── */
+@media (min-width: 900px) {
+  body {
+    background: #f5f7fb;
+  }
+
+  .app-shell {
+    min-height: 100dvh;
+    padding: 30px;
+    background: transparent;
+  }
+
+  .app-shell::before,
+  .app-shell::after,
+  .ambient,
+  .floating-money {
+    display: none;
+  }
+
+  .phone-frame {
+    display: grid;
+    grid-template-columns: 220px minmax(0, 1fr);
+    grid-template-rows: 82px minmax(0, 1fr);
+    max-width: 1480px;
+    min-height: calc(100dvh - 48px);
+    margin: 0 auto;
+    border: 1px solid #e8ebf2;
+    border-radius: 17px;
+    background: #fff;
+    box-shadow: 0 18px 55px rgba(27, 39, 67, .08);
+    backdrop-filter: none;
+  }
+
+  .dark-mode .phone-frame {
+    border-color: rgba(255,255,255,.1);
+    background: #171927;
+  }
+
+  .topbar {
+    grid-column: 2;
+    grid-row: 1;
+    align-items: center;
+    padding: 16px 25px;
+    border-bottom: 1px solid #edf0f5;
+    background: #fff;
+  }
+
+  .dark-mode .topbar {
+    border-color: rgba(255,255,255,.08);
+    background: #171927;
+  }
+
+  .topbar-left {
+    align-items: center;
+  }
+
+  .avatar {
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+  }
+
+  .topbar-greeting-row {
+    margin-bottom: 3px;
+  }
+
+  .topbar-name {
+    font-size: 17px;
+  }
+
+  .top-actions {
+    gap: 8px;
+    margin-left: auto;
+  }
+
+  .top-actions button,
+  .icon-button {
+    width: 36px;
+    height: 36px;
+    border-color: #e8ebf2;
+    border-radius: 12px;
+    background: #fff;
+    color: #647084;
+  }
+
+  .dark-mode .top-actions button,
+  .dark-mode .icon-button {
+    border-color: rgba(255,255,255,.12);
+    background: rgba(255,255,255,.04);
+    color: #c0c0d8;
+  }
+
+  .content-scroll {
+    grid-column: 2;
+    grid-row: 2;
+    min-height: 0;
+    max-height: none;
+    padding: 28px 32px 48px;
+    overflow-y: auto;
+    background: #f8f9fc;
+  }
+
+  .dark-mode .content-scroll {
+    background: #121521;
+  }
+
+  .bottom-nav {
+    position: relative;
+    z-index: 1;
+    grid-column: 1;
+    grid-row: 1 / span 2;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 7px;
+    height: auto;
+    padding: 22px 14px;
+    border-top: 0;
+    border-right: 1px solid #edf0f5;
+    background: #fff;
+    backdrop-filter: none;
+  }
+
+  .bottom-nav::before {
+    content: 'CHEDexpense';
+    display: block;
+    margin: 0 10px 24px;
+    color: #252b3a;
+    font-size: 17px;
+    font-weight: 800;
+    letter-spacing: -.05em;
+  }
+
+  .dark-mode .bottom-nav {
+    border-color: rgba(255,255,255,.08);
+    background: #171927;
+  }
+
+  .dark-mode .bottom-nav::before {
+    color: #fff;
+  }
+
+  .bottom-nav button {
+    min-height: 45px;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 11px;
+    padding: 0 11px;
+    border-radius: 12px;
+    color: #737e91;
+  }
+
+  .bottom-nav button span {
+    width: 22px;
+    height: 24px;
+  }
+
+  .bottom-nav small {
+    font-size: 12px;
+    font-weight: 600;
+  }
+
+  .bottom-nav .nav-active {
+    background: #f0efff;
+    color: #6258d5;
+  }
+
+  .dark-mode .bottom-nav .nav-active {
+    background: #302d55;
+    color: #b7afff;
+  }
+
+  .bottom-nav .nav-active span {
+    background: transparent;
+  }
+
+  .bottom-nav .add-nav-btn {
+    order: 5;
+    min-height: 45px;
+    margin-top: 15px;
+    background: #f8f9fc;
+    color: #6258d5;
+  }
+
+  .dark-mode .bottom-nav .add-nav-btn {
+    background: rgba(255,255,255,.05);
+    color: #b7afff;
+  }
+
+  .bottom-nav .add-nav-btn small {
+    display: block;
+    font-size: 12px;
+    transform: none;
+  }
+
+  .bottom-nav .add-button {
+    width: 27px !important;
+    height: 27px !important;
+    border-radius: 9px !important;
+    box-shadow: none;
+  }
+
+  .content-scroll > div > .net-worth {
+    min-height: 190px;
+    padding: 26px 30px;
+    border-radius: 22px;
+  }
+
+  .net-value {
+    font-size: 38px;
+  }
+
+  .section-head {
+    margin-top: 30px;
+  }
+
+  .section-head h2 {
+    font-size: 18px;
+  }
+
+  .stat-grid {
+    gap: 14px;
+  }
+
+  .stat-card {
+    padding: 18px;
+    border-radius: 18px;
+  }
+
+  .stat-card p {
+    font-size: 12px;
+  }
+
+  .stat-card strong {
+    font-size: 21px;
+  }
+
+  .account-row {
+    gap: 14px;
+  }
+
+  .account-card {
+    padding: 16px;
+    border-radius: 17px;
+  }
+
+  .glass-panel {
+    backdrop-filter: none;
+  }
+
+  .glass-panel::after {
+    display: none;
+  }
+}
+
+/* Keep overlays and their content reachable on short screens and mobile. */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  justify-content: center;
+  padding: 16px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.note-dialog {
+  max-height: calc(100dvh - 32px);
+  margin: 0 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+.add-sheet {
+  max-width: 510px;
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+@media (min-width: 700px) {
+  .modal-backdrop {
+    align-items: center;
+  }
+
+  .add-sheet {
+    margin: auto;
+    border-radius: 26px;
+  }
+}
+
+.account-card {
+  display: flex;
+  min-height: 198px;
+  flex-direction: column;
+  padding: 16px;
+  border-color: #e7ebf2;
+  border-radius: 18px;
+  background: #fff;
+  box-shadow: 0 5px 16px rgba(32, 45, 70, .05);
+  transition: border-color .2s, box-shadow .2s, transform .2s;
+}
+
+.account-card:hover {
+  border-color: #d7d4ff;
+  box-shadow: 0 12px 26px rgba(45, 52, 83, .1);
+}
+
+.account-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.account-icon {
+  width: 42px;
+  height: 42px;
+  overflow: hidden;
+  border-radius: 13px;
+}
+
+.account-card-status {
+  border-radius: 999px;
+  padding: 5px 8px;
+  background: #eef7f4;
+  color: #27836e;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.account-card-status.excluded {
+  background: #f5f1f3;
+  color: #9c687d;
+}
+
+.account-card .account-card-name {
+  overflow: hidden;
+  margin: 14px 0 3px;
+  color: #253044;
+  font-size: 14px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-card .account-card-purpose {
+  min-height: 14px;
+  overflow: hidden;
+  color: #7d8798;
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-card-balance {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px;
+  margin-top: 16px;
+}
+
+.account-card-balance span {
+  color: #7d8798;
+  font-size: 7px;
+}
+
+.account-card .account-card-balance strong {
+  overflow: hidden;
+  margin: 0;
+  color: #202a3b;
+  font-size: 16px;
+  letter-spacing: -.035em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.account-card-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 5px;
+  padding-top: 7px;
+  border-top: 1px solid #eef0f4;
+}
+
+.account-card-actions .account-action-button {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 9px;
+  background: transparent;
+  color: #697589;
+  transition: background .15s, border-color .15s;
+}
+
+.account-card-actions .account-action-button:hover {
+  border-color: #e6e8f0;
+  background: #f5f6fa;
+}
+
+.account-card-actions .account-action-button:focus-visible {
+  outline: 2px solid #7168db;
+  outline-offset: 2px;
+}
+
+.dark-mode .account-card {
+  border-color: rgba(255,255,255,.1);
+  background: #1d2030;
+  box-shadow: 0 6px 18px rgba(0,0,0,.14);
+}
+
+.dark-mode .account-card .account-card-name,
+.dark-mode .account-card .account-card-balance strong {
+  color: #fff;
+}
+
+.dark-mode .account-card .account-card-purpose,
+.dark-mode .account-card-balance span {
+  color: #a9aec0;
+}
+
+.dark-mode .account-card-status {
+  background: rgba(39,131,110,.18);
+  color: #75d1b6;
+}
+
+.dark-mode .account-card-status.excluded {
+  background: rgba(156,104,125,.18);
+  color: #e6a9c1;
+}
+
+.dark-mode .account-card-actions {
+  border-color: rgba(255,255,255,.08);
+}
+
+.dark-mode .account-card-actions .account-action-button:hover {
+  border-color: rgba(255,255,255,.12);
+  background: rgba(255,255,255,.06);
+}
+
+.lender-actions .lender-repay-button {
+  width: auto;
+  padding: 0 8px;
+  border: 1px solid #d5eee6;
+  background: #eef7f4;
+  color: #27836e;
+  font-size: 9px;
+  font-weight: 700;
+}
+
+.lender-actions .lender-repay-button:hover {
+  background: #dff2eb;
+}
+
+.dark-mode .lender-actions .lender-repay-button {
+  border-color: rgba(117,209,182,.18);
+  background: rgba(39,131,110,.18);
+  color: #75d1b6;
+}
+
+@media (min-width: 700px) {
+  .account-row {
+    grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+    gap: 14px;
+  }
+}
+
+.note-copy-button {
+  display: grid;
+  width: 29px;
+  height: 29px;
+  place-items: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.note-copy-button svg {
+  width: 13px;
+  height: 13px;
+}
+
+.note-actions .note-copy-button {
+  border-color: var(--line);
+  background: var(--surface);
+}
+
+.note-copy-button:hover {
+  border-color: rgba(113,104,219,.28);
+  background: rgba(113,104,219,.08);
+  color: #7168db;
+}
+
+.note-copy-button.copied {
+  color: #18ad99;
+}
+
+.dark-mode .note-copy-button:hover {
+  background: rgba(255,255,255,.08);
+  color: #a89fff;
+}
+
+.note-dialog-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.note-dialog-actions .note-copy-button {
+  width: 34px;
+  height: 34px;
+}
+
+.copy-live-region {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.notes-reminder-banner {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(216,120,161,.22);
+  border-radius: 16px;
+  background: linear-gradient(110deg, rgba(216,120,161,.10), rgba(113,104,219,.07));
+}
+.notes-reminder-banner > svg { width: 18px; flex: none; color: #c76391; }
+.notes-reminder-banner > div { display: flex; flex: 1; min-width: 0; flex-direction: column; gap: 3px; }
+.notes-reminder-banner strong { font-size: 11px; }
+.notes-reminder-banner span { color: var(--muted); font-size: 9px; }
+.notes-reminder-banner button {
+  flex: none;
+  border-radius: 9px;
+  padding: 7px 10px;
+  background: rgba(113,104,219,.12);
+  color: #7168db;
+  font-size: 9px;
+  font-weight: 700;
+}
+.notes-filter-bar {
+  display: grid;
+  grid-template-columns: minmax(150px, 2fr) repeat(3, minmax(105px, 1fr));
+  gap: 8px;
+  margin: 0 0 16px;
+}
+.notes-filter-bar select,
+.notes-search {
+  min-width: 0;
+  height: 38px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 10px;
+}
+.notes-filter-bar select { padding: 0 9px; }
+.notes-search { display: flex; align-items: center; gap: 7px; padding: 0 10px; }
+.notes-search svg { width: 14px; flex: none; color: var(--muted); }
+.notes-search input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font: inherit; font-size: 10px; }
+.notes-search input::placeholder { color: var(--muted); }
+.note-custom-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
+.note-custom-tag { border-radius: 999px; padding: 4px 8px; background: rgba(113,104,219,.10); color: #7168db; font-size: 9px; font-weight: 700; }
+.note-tag.archived { background: #ececf2; color: #69697d; }
+.note-flag.active { background: rgba(113,104,219,.12); color: #7168db; }
+.note-due { display: inline-flex; align-items: center; gap: 4px; }
+.note-due.overdue { color: #c34f61; font-weight: 800; }
+.note-due.today,.note-due.soon { color: #bc7b2c; font-weight: 700; }
+.note-card-copy-row { display: flex; justify-content: flex-end; margin-top: 8px; }
+.note-copy-button.labeled {
+  display: flex;
+  width: auto;
+  min-width: 68px;
+  height: 31px;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 10px;
+  color: #7168db;
+  font-size: 10px;
+  font-weight: 700;
+}
+.note-copy-button.labeled span { color: inherit; }
+.note-copy-button.labeled svg { width: 13px; height: 13px; }
+.dark-mode .note-tag.archived { background: #373748; color: #c1c1d0; }
+.dark-mode .note-custom-tag { background: rgba(168,159,255,.16); color: #b7b0ff; }
+.dark-mode .note-flag.active { background: rgba(168,159,255,.16); color: #b7b0ff; }
+.dark-mode .note-due.overdue { color: #f08a9a; }
+.dark-mode .note-due.today,.dark-mode .note-due.soon { color: #f0bf75; }
+.dark-mode .note-copy-button.labeled { color: #b7b0ff; }
+.dark-mode .notes-reminder-banner { border-color: rgba(232,138,180,.2); }
+.dark-mode .notes-reminder-banner > svg { color: #e88ab4; }
+.dark-mode .notes-reminder-banner button { color: #b7b0ff; }
+
+@media (max-width: 520px) {
+  .notes-filter-bar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .notes-search { grid-column: 1 / -1; }
+  .notes-reminder-banner { align-items: flex-start; }
+  .notes-reminder-banner button { align-self: center; }
+  .lenders-list { padding: 12px; }
+  .lenders-total { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 5px 8px; align-items: center; }
+  .lenders-total .eyebrow { grid-column: 1 / -1; }
+  .lenders-total strong { grid-column: 2; justify-self: end; }
+  .lenders-total small { grid-column: 1 / -1; margin: 0 !important; }
+  .lender-debt-row {
+    display: grid;
+    grid-template-columns: 36px minmax(0, 1fr) auto;
+    align-items: start;
+    gap: 8px;
+    padding: 12px 0;
+  }
+  .lender-debt-row .lender-info { grid-column: 2; grid-row: 1; }
+  .lender-debt-row .lender-info small { display: block; line-height: 1.4; white-space: normal; }
+  .lender-debt-row .lender-amount { grid-column: 3; grid-row: 1; max-width: 105px; white-space: normal; text-align: right; overflow-wrap: anywhere; }
+  .lender-debt-row .lender-actions {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) repeat(3, 36px);
+    gap: 6px;
+    width: 100%;
+    padding-top: 3px;
+  }
+  .lender-debt-row .lender-actions button { width: 36px; height: 34px; }
+  .lender-debt-row .lender-actions .lender-repay-button { width: auto; height: 34px; }
+}
+
+@media (max-width: 480px) {
+  .account-card {
+    min-height: 184px;
+    padding: 12px;
+  }
+
+  .account-card-status {
+    padding: 4px 6px;
+    font-size: 8px;
+  }
+
+  .account-card .account-card-name {
+    font-size: 12px;
+  }
+
+  .account-card .account-card-balance strong {
+    font-size: 13px;
+  }
 }

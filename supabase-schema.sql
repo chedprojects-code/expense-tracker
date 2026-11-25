@@ -117,8 +117,12 @@ create table if not exists lenders (
   name text not null,
   amount numeric not null default 0,
   note text default '',
+  account_id uuid references accounts(id) on delete set null,
   created_at timestamptz default now()
 );
+
+alter table lenders
+  add column if not exists account_id uuid references accounts(id) on delete set null;
 
 alter table lenders enable row level security;
 drop policy if exists "Users can manage their own lenders" on lenders;
@@ -248,6 +252,13 @@ notify pgrst, 'reload schema';
 -- Keep the schema aligned with fields used by the dashboard client.
 alter table notes add column if not exists sort_order integer not null default 0;
 alter table plain_notes add column if not exists sort_order integer not null default 0;
+alter table notes add column if not exists tags text[] not null default '{}';
+alter table notes add column if not exists pinned boolean not null default false;
+alter table notes add column if not exists archived boolean not null default false;
+alter table plain_notes add column if not exists due_date date;
+alter table plain_notes add column if not exists tags text[] not null default '{}';
+alter table plain_notes add column if not exists pinned boolean not null default false;
+alter table plain_notes add column if not exists archived boolean not null default false;
 alter table buy_list_items add column if not exists price numeric;
 alter table buy_list_items add column if not exists sort_order integer not null default 0;
 alter table buy_list_items add column if not exists bought_at timestamptz;
@@ -614,18 +625,140 @@ begin
 end;
 $$;
 
+create or replace function public.save_lender(
+  p_id uuid,
+  p_name text,
+  p_amount numeric,
+  p_note text,
+  p_account_id uuid
+)
+returns public.lenders
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_old public.lenders%rowtype;
+  v_saved public.lenders%rowtype;
+  v_existing boolean;
+begin
+  if auth.uid() is null then
+    raise exception 'You must be signed in to save a lender';
+  end if;
+  if p_id is null or nullif(btrim(coalesce(p_name, '')), '') is null
+     or p_amount is null or p_amount <= 0
+     or p_amount::text in ('NaN', 'Infinity', '-Infinity')
+     or p_account_id is null then
+    raise exception 'Enter a lender name, a positive amount, and an account';
+  end if;
+
+  select * into v_old
+    from public.lenders
+    where id = p_id and user_id = auth.uid()
+    for update;
+  v_existing := found;
+
+  perform a.id
+    from public.accounts a
+    where a.user_id = auth.uid()
+      and a.id in (p_account_id, v_old.account_id)
+    order by a.id
+    for update;
+
+  if not exists (
+    select 1 from public.accounts
+    where id = p_account_id and user_id = auth.uid()
+  ) then
+    raise exception 'The selected account could not be found';
+  end if;
+
+  if v_existing and v_old.account_id is not null then
+    update public.accounts
+      set balance = balance + v_old.amount
+      where id = v_old.account_id and user_id = auth.uid();
+  end if;
+
+  update public.accounts
+    set balance = balance - p_amount
+    where id = p_account_id and user_id = auth.uid();
+
+  if v_existing then
+    update public.lenders
+      set name = btrim(p_name),
+          amount = p_amount,
+          note = coalesce(p_note, ''),
+          account_id = p_account_id
+      where id = p_id and user_id = auth.uid()
+      returning * into v_saved;
+  else
+    insert into public.lenders (id, user_id, name, amount, note, account_id)
+      values (p_id, auth.uid(), btrim(p_name), p_amount, coalesce(p_note, ''), p_account_id)
+      returning * into v_saved;
+  end if;
+
+  return v_saved;
+end;
+$$;
+
+create or replace function public.record_lender_repayment(
+  p_lender_id uuid,
+  p_account_id uuid
+)
+returns void
+language plpgsql
+security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_lender public.lenders%rowtype;
+begin
+  if auth.uid() is null then
+    raise exception 'You must be signed in to record a lender repayment';
+  end if;
+
+  select * into v_lender
+    from public.lenders
+    where id = p_lender_id and user_id = auth.uid()
+    for update;
+  if not found then
+    raise exception 'This lender could not be found';
+  end if;
+  if p_account_id is null then
+    raise exception 'Choose the account that received the repayment';
+  end if;
+
+  perform 1
+    from public.accounts
+    where id = p_account_id and user_id = auth.uid()
+    for update;
+  if not found then
+    raise exception 'The selected account could not be found';
+  end if;
+
+  update public.accounts
+    set balance = balance + v_lender.amount
+    where id = p_account_id and user_id = auth.uid();
+  delete from public.lenders
+    where id = v_lender.id and user_id = auth.uid();
+end;
+$$;
+
 revoke all on function public.save_account_transaction(uuid, text, numeric, text, text, date, uuid, uuid, uuid, uuid) from public;
 revoke all on function public.delete_account_transaction(uuid) from public;
 revoke all on function public.purchase_buy_list_item(uuid, numeric, uuid) from public;
 revoke all on function public.settle_future_expense(uuid, uuid, numeric) from public;
 revoke all on function public.record_recurring_transaction(uuid) from public;
 revoke all on function public.apply_daily_account_interest(uuid[]) from public;
+revoke all on function public.save_lender(uuid, text, numeric, text, uuid) from public;
+revoke all on function public.record_lender_repayment(uuid, uuid) from public;
 grant execute on function public.save_account_transaction(uuid, text, numeric, text, text, date, uuid, uuid, uuid, uuid) to authenticated;
 grant execute on function public.delete_account_transaction(uuid) to authenticated;
 grant execute on function public.purchase_buy_list_item(uuid, numeric, uuid) to authenticated;
 grant execute on function public.settle_future_expense(uuid, uuid, numeric) to authenticated;
 grant execute on function public.record_recurring_transaction(uuid) to authenticated;
 grant execute on function public.apply_daily_account_interest(uuid[]) to authenticated;
+grant execute on function public.save_lender(uuid, text, numeric, text, uuid) to authenticated;
+grant execute on function public.record_lender_repayment(uuid, uuid) to authenticated;
 
 do $$ begin
   if not exists (

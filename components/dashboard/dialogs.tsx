@@ -4,8 +4,9 @@ import type { Dispatch, SetStateAction } from 'react'
 import { motion } from 'framer-motion'
 import { Loader2, Save, X } from 'lucide-react'
 import type { NoteDraft, AccountDraft, TxDraft, LenderDraft, FutureExpenseDraft, RecurringDraft } from './types'
-import type { Account, BuyListItem, FutureExpense } from '@/lib/supabase/db'
+import { fmt, type Account, type BuyListItem, type FutureExpense, type Lender } from '@/lib/supabase/db'
 import { BANK_LOGOS, getBankLogoUrl, isAccountImage, uploadBankLogos } from '@/lib/bank-logos'
+import { parseNoteTags } from '@/lib/notes-utils'
 
 const CATEGORIES = ['Food & snacks', 'Transport', 'Outings', 'Data & airtime', 'Utilities', 'Shopping', 'Health', 'Other']
 const INCOME_CATEGORIES = ['Salary', 'Freelance', 'Gift', 'Investment', 'Other']
@@ -38,6 +39,13 @@ export function NoteDialog({ open, draft, setDraft, onSave, onClose, isEditing }
           <input type="number" min={draft.amount || '0.01'} step="0.01" value={draft.amount_max} onChange={(e) => setDraft({ ...draft, amount_max: e.target.value })} placeholder="e.g. 100000" inputMode="decimal" />
         </label>
         <label>Due Date<input required type="date" value={draft.due_date} onChange={(e) => setDraft({ ...draft, due_date: e.target.value })} /></label>
+        <label>Tags
+          <input
+            value={draft.tags.join(', ')}
+            onChange={(e) => setDraft({ ...draft, tags: parseNoteTags(e.target.value) })}
+            placeholder="e.g. travel, urgent"
+          />
+        </label>
         <label>Type
           <select value={draft.category} onChange={(e) => setDraft({ ...draft, category: e.target.value })}>
             <option>Want</option>
@@ -120,7 +128,7 @@ export function AccountDialog({ open, draft, setDraft, onSave, onClose, isEditin
               <option value={draft.symbol}>Current account image</option>
             )}
             {logoOptions.map((logo) => (
-              <option key={logo.fileName} value={logo.url}>{logo.label}</option>
+              <option key={logo.fileName} value={logo.url}>{logo.label} </option>
             ))}
           </select>
         </label>
@@ -450,13 +458,14 @@ export function RecurringDialog({ open, draft, setDraft, accounts, onSave, onClo
 }
 
 // ─── Lender Dialog ────────────────────────────────────────────────────────────
-export function LenderDialog({ open, draft, setDraft, onSave, onClose, isEditing }: {
+export function LenderDialog({ open, draft, setDraft, onSave, onClose, isEditing, accounts }: {
   open: boolean
   draft: LenderDraft
   setDraft: (d: LenderDraft) => void
   onSave: () => void
   onClose: () => void
   isEditing: boolean
+  accounts: Account[]
 }) {
   if (!open) return null
   return (
@@ -472,8 +481,72 @@ export function LenderDialog({ open, draft, setDraft, onSave, onClose, isEditing
         <h2>{isEditing ? 'Update lender' : 'Who owes you?'}</h2>
         <label>Name<input required value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} placeholder="e.g. John Doe" /></label>
         <label>Amount Owed (NGN)<input required type="number" min="0.01" step="0.01" value={draft.amount} onChange={(e) => setDraft({ ...draft, amount: e.target.value })} placeholder="0" inputMode="decimal" /></label>
+        <label>Lent from account
+          <select required value={draft.account_id} onChange={(e) => setDraft({ ...draft, account_id: e.target.value })}>
+            <option value="">Choose account</option>
+            {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+          </select>
+        </label>
         <label>Note (optional)<input value={draft.note} onChange={(e) => setDraft({ ...draft, note: e.target.value })} placeholder="e.g. Borrowed for rent" /></label>
-        <button className="primary-button" type="submit"><Save /> Save lender</button>
+        {accounts.length === 0 && <p role="status" style={{ color: 'var(--muted)', fontSize: 10 }}>Add an account before recording a loan.</p>}
+        <button className="primary-button" type="submit" disabled={accounts.length === 0}><Save /> Save lender</button>
+      </motion.form>
+    </motion.div>
+  )
+}
+
+export function LenderRepaymentDialog({ lender, accounts, hideAmount, onSave, onClose }: {
+  lender: Lender | null
+  accounts: Account[]
+  hideAmount: boolean
+  onSave: (lenderId: string, accountId: string) => Promise<void>
+  onClose: () => void
+}) {
+  const [accountId, setAccountId] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    if (!lender) return
+    setAccountId(accounts.some((account) => account.id === lender.account_id)
+      ? lender.account_id ?? ''
+      : accounts[0]?.id ?? '')
+  }, [lender, accounts])
+
+  if (!lender) return null
+
+  return (
+    <motion.div className="modal-backdrop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: .18 }}>
+      <motion.form
+        className="note-dialog glass-panel"
+        initial={{ y: 40 }} animate={{ y: 0 }}
+        transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+        onSubmit={async (event) => {
+          event.preventDefault()
+          if (!accountId || saving) return
+          setSaving(true)
+          try {
+            await onSave(lender.id, accountId)
+          } finally {
+            setSaving(false)
+          }
+        }}
+      >
+        <button type="button" className="close-button" onClick={onClose}><X /></button>
+        <p className="eyebrow">RECORD REPAYMENT</p>
+        <h2>{lender.name} paid you back</h2>
+        <p style={{ margin: '0 0 8px', color: 'var(--muted)', fontSize: 12 }}>
+          This will add {hideAmount ? 'the full outstanding amount' : fmt(lender.amount)} to the account that received the repayment and clear this lender balance.
+        </p>
+        <label>Received into
+          <select required value={accountId} onChange={(event) => setAccountId(event.target.value)}>
+            <option value="">Choose account</option>
+            {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
+          </select>
+        </label>
+        {accounts.length === 0 && <p role="status" style={{ color: 'var(--muted)', fontSize: 10 }}>Add an account before recording a repayment.</p>}
+        <button className="primary-button" type="submit" disabled={!accountId || saving}>
+          {saving ? <Loader2 className="animate-spin" /> : <Save />} {saving ? 'Recording repayment…' : 'Record repayment'}
+        </button>
       </motion.form>
     </motion.div>
   )
