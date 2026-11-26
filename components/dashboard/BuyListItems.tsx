@@ -1,7 +1,7 @@
 'use client'
 
 import { AnimatePresence, motion } from 'framer-motion'
-import { CheckCircle2, Circle, GripVertical, Pencil, ShoppingCart, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowUp, CheckCircle2, Circle, GripVertical, Pencil, ShoppingCart, Trash2 } from 'lucide-react'
 import { fmt, type BuyListItem } from '@/lib/supabase/db'
 import { useDragSort } from '@/hooks/useDragSort'
 
@@ -22,7 +22,18 @@ export function BuyListItems({
 }) {
   const total = items.reduce((sum, i) => sum + (i.price ?? 0), 0)
   const boughtTotal = items.filter((i) => i.bought).reduce((sum, i) => sum + (i.price ?? 0), 0)
-  const { onDragStart, onDragOver, onDrop, onDragEnd, dragId } = useDragSort(items, onReorder)
+  const displayItems = [...items].sort((a, b) => Number(a.bought) - Number(b.bought) || a.sort_order - b.sort_order)
+  const reorderItems = (reordered: BuyListItem[]) => {
+    onReorder([...reordered.filter((item) => !item.bought), ...reordered.filter((item) => item.bought)])
+  }
+  const { onDragStart, onDragOver, onDrop, onDragEnd, dragId } = useDragSort(displayItems, reorderItems)
+  const moveItem = (index: number, direction: -1 | 1) => {
+    const destination = index + direction
+    if (destination < 0 || destination >= displayItems.length || displayItems[index].bought !== displayItems[destination].bought) return
+    const reordered = [...displayItems]
+    ;[reordered[index], reordered[destination]] = [reordered[destination], reordered[index]]
+    reorderItems(reordered)
+  }
 
   return (
     <>
@@ -51,7 +62,7 @@ export function BuyListItems({
           </div>
         )}
         <AnimatePresence>
-          {items.map((item) => (
+          {displayItems.map((item, index) => (
             <motion.div
               layout key={item.id}
               initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }}
@@ -73,7 +84,9 @@ export function BuyListItems({
                 <span className="buy-title">{item.title}</span>
                 {item.price != null && <span className="buy-price">{fmt(item.price)}</span>}
               </div>
-              <div style={{ display: 'flex', gap: 4 }}>
+              <div className="buy-item-actions">
+                <button className="buy-position-button" aria-label={`Move ${item.title} up`} title="Move up" disabled={index === 0 || displayItems[index - 1].bought !== item.bought} onClick={() => moveItem(index, -1)}><ArrowUp /></button>
+                <button className="buy-position-button" aria-label={`Move ${item.title} down`} title="Move down" disabled={index === displayItems.length - 1 || displayItems[index + 1].bought !== item.bought} onClick={() => moveItem(index, 1)}><ArrowDown /></button>
                 {!item.bought && <button className="buy-delete" onClick={() => onEdit(item)} aria-label={`Edit ${item.title}`}><Pencil style={{ width: 12 }} /></button>}
                 <button className="buy-delete" onClick={() => onDelete(item.id)}><Trash2 style={{ width: 13 }} /></button>
               </div>

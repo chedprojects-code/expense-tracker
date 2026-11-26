@@ -2,7 +2,7 @@
 
 import { useRef } from 'react'
 import { motion } from 'framer-motion'
-import { Archive, ArchiveRestore, Calendar, GripVertical, Pencil, Pin, Plus, Trash2, WalletCards } from 'lucide-react'
+import { Archive, ArchiveRestore, ArrowDown, ArrowUp, Calendar, GripVertical, Pencil, Pin, Plus, Trash2, WalletCards } from 'lucide-react'
 import { fmt, type Note } from '@/lib/supabase/db'
 import { getNoteDueLabel, getNoteDueStatus } from '@/lib/notes-utils'
 import { GlassIcon } from './ui'
@@ -51,10 +51,10 @@ export function FinancialNotes({
             <strong style={{ fontSize: 14, color: '#18ad99' }}>{fmt(notesTotal)}</strong>
           </div>
         )}
-        {notes.map((note) => (
+        {notes.map((note, index) => (
           <motion.article
             layout key={note.id}
-            className={`glass-panel note-card${dragId.current === note.id ? ' dragging' : ''}`}
+            className={`glass-panel note-card financial-note-card${dragId.current === note.id ? ' dragging' : ''}`}
             id={`search-result-financialNote-${note.id}`}
             draggable
             onDragStart={() => onDragStart(note.id)}
@@ -69,6 +69,18 @@ export function FinancialNotes({
               {note.archived && <span className="note-tag archived">Archived</span>}
               <div className="note-actions">
                 <GripVertical style={{ width: 13, color: 'var(--muted)', cursor: 'grab' }} />
+                <button type="button" aria-label={`Move ${note.title} up`} title="Move up" disabled={index === 0} onClick={() => {
+                  if (index === 0) return
+                  const reordered = [...notes]
+                  ;[reordered[index - 1], reordered[index]] = [reordered[index], reordered[index - 1]]
+                  onReorder(reordered)
+                }}><ArrowUp /></button>
+                <button type="button" aria-label={`Move ${note.title} down`} title="Move down" disabled={index === notes.length - 1} onClick={() => {
+                  if (index === notes.length - 1) return
+                  const reordered = [...notes]
+                  ;[reordered[index], reordered[index + 1]] = [reordered[index + 1], reordered[index]]
+                  onReorder(reordered)
+                }}><ArrowDown /></button>
                 <button type="button" className={note.pinned ? 'note-flag active' : 'note-flag'} aria-label={note.pinned ? 'Unpin note' : 'Pin note'} title={note.pinned ? 'Unpin note' : 'Pin note'} onClick={() => onTogglePinned(note.id, !note.pinned)}><Pin /></button>
                 <button type="button" aria-label={note.archived ? 'Restore note' : 'Archive note'} title={note.archived ? 'Restore note' : 'Archive note'} onClick={() => onToggleArchived(note.id, !note.archived)}>{note.archived ? <ArchiveRestore /> : <Archive />}</button>
                 <button type="button" aria-label="Edit note" onClick={() => onEdit(note)}><Pencil /></button>

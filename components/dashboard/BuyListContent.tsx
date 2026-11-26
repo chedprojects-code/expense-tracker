@@ -42,6 +42,10 @@ export function BuyListContent({ items, onAdd, onToggle, onEdit, onDelete, buyTa
     await onEdit(editingItem.id, editTitle.trim(), editPrice ? parseFloat(editPrice) : null, editCategory)
     setEditingItem(null)
   }
+  const handleReorder = (reorderedCategoryItems: BuyListItem[]) => {
+    let categoryIndex = 0
+    onReorder(items.map((item) => item.category === buyTab ? reorderedCategoryItems[categoryIndex++] : item))
+  }
 
   return (
     <div className='mt-8'>
@@ -75,8 +79,8 @@ export function BuyListContent({ items, onAdd, onToggle, onEdit, onDelete, buyTa
       </div>
 
       {buyTab === 'need'
-        ? <NeedsTab items={items} onToggle={onToggle} onEdit={openEdit} onDelete={onDelete} onReorder={onReorder} />
-        : <WantsTab items={items} onToggle={onToggle} onEdit={openEdit} onDelete={onDelete} onReorder={onReorder} />
+        ? <NeedsTab items={items} onToggle={onToggle} onEdit={openEdit} onDelete={onDelete} onReorder={handleReorder} />
+        : <WantsTab items={items} onToggle={onToggle} onEdit={openEdit} onDelete={onDelete} onReorder={handleReorder} />
       }
 
       <AnimatePresence>

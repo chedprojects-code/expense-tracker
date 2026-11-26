@@ -7,9 +7,9 @@ import { AuthProvider } from '@/components/auth/AuthProvider'
 const inter = Inter({ subsets: ['latin'], variable: '--font-inter' })
 
 export const metadata: Metadata = {
-  title: 'CHEDexpense',
+  title: 'ChedMint',
   description: 'A calm, glassmorphism-inspired personal finance dashboard for tracking your money.',
-  generator: 'v0.app',
+  generator: 'ched',
   icons: {
     icon: [
       {

@@ -11,7 +11,6 @@ import { GlassIcon, greeting } from './ui'
 import type { DashboardSearchItem } from './types'
 
 export function DashboardHeader({
-  initials,
   name,
   dark,
   searchItems,
@@ -20,7 +19,6 @@ export function DashboardHeader({
   onToggleDark,
   onSettings,
 }: {
-  initials: string
   name: string
   dark: boolean
   searchItems: DashboardSearchItem[]
@@ -52,10 +50,9 @@ export function DashboardHeader({
   return (
     <header className="topbar">
       <div className="topbar-left">
-        <div className="avatar">{initials}</div>
         <div className="topbar-greeting">
           <div className="topbar-greeting-row">
-            <p className="eyebrow">{greeting()}</p>
+            <p className="topbar-salutation"><span>{greeting()}</span> <strong>{name}</strong></p>
             <div className="top-actions">
               <button aria-label="Help" onClick={onHelp}><CircleHelp /></button>
               <button aria-label="Toggle dark mode" onClick={onToggleDark}>{dark ? <Sun /> : <Moon />}</button>
@@ -74,7 +71,6 @@ export function DashboardHeader({
               }}><Search /></button>
             </div>
           </div>
-          <h1 className="topbar-name">{name} <span className="wave">✦</span></h1>
           {searchOpen && <div className="top-search">
             <Search aria-hidden="true" />
             <input

@@ -93,7 +93,6 @@ export default function Page() {
     <main className={`app-shell ${dark ? 'dark-mode' : ''}`}>
       <section className="phone-frame">
         <DashboardHeader
-          initials={profile?.initials ?? user.email?.[0]?.toUpperCase() ?? '?'}
           name={profile?.name ?? user.email?.split('@')[0] ?? ''}
           dark={dark}
           searchItems={searchItems}
@@ -117,7 +116,7 @@ export default function Page() {
             </div>
           ) : (
             <AnimatePresence mode="wait">
-              <motion.div key={active} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .35 }}>
+              <motion.div key={active} className={active === 'Home' ? 'dashboard-home-view' : undefined} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .35 }}>
 
                 {/* ══ HOME ══ */}
                 {active === 'Home' && <>
@@ -132,7 +131,7 @@ export default function Page() {
                       {hasSpendableExclusions && (
                         <div className="net-planned">
                           <span>spendable (excl. savings)</span>
-                          <span style={{ color: '#8af0dc' }}>{showBalance ? fmt(spendableWorth) : '••••'}</span>
+                          <span style={{ color: dark ? '#8af0dc' : '#425f67' }}>{showBalance ? fmt(spendableWorth) : '••••'}</span>
                         </div>
                       )}
                       {totalFutureExpenses > 0 && (
@@ -143,7 +142,7 @@ export default function Page() {
                       )}
                       <div className="trend">
                         <TrendingUp />
-                        <strong style={{ color: stats.income.isPositive ? '#8af0dc' : '#ed8fbb' }}>{stats.income.change}</strong>
+                        <strong style={{ color: stats.income.isPositive ? (dark ? '#8af0dc' : '#34766c') : (dark ? '#ed8fbb' : '#a94e77') }}>{stats.income.change}</strong>
                         <span>income vs last month</span>
                       </div>
                     </div>

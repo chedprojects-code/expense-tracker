@@ -920,9 +920,10 @@ export function useExpenseData() {
 
   // ── Reorder ─────────────────────────────────────────────────────────────────
   const reorderNotes = useCallback(async (reordered: Note[]) => {
-    setNotes(reordered)
+    const ordered = reordered.map((note, index) => ({ ...note, sort_order: index }))
+    setNotes(ordered)
     try {
-      await updateNotesSortOrder(reordered.map((n, i) => ({ id: n.id, sort_order: i })))
+      await updateNotesSortOrder(ordered.map((note) => ({ id: note.id, sort_order: note.sort_order })))
     } catch (err) {
       console.error('[reorderNotes]', err)
       setActionError('Could not save the note order.')
@@ -931,9 +932,10 @@ export function useExpenseData() {
   }, [refreshNotes])
 
   const reorderPlainNotes = useCallback(async (reordered: PlainNote[]) => {
-    setPlainNotes(reordered)
+    const ordered = reordered.map((note, index) => ({ ...note, sort_order: index }))
+    setPlainNotes(ordered)
     try {
-      await updatePlainNotesSortOrder(reordered.map((n, i) => ({ id: n.id, sort_order: i })))
+      await updatePlainNotesSortOrder(ordered.map((note) => ({ id: note.id, sort_order: note.sort_order })))
     } catch (err) {
       console.error('[reorderPlainNotes]', err)
       setActionError('Could not save the note order.')
@@ -942,9 +944,10 @@ export function useExpenseData() {
   }, [refreshPlainNotes])
 
   const reorderBuyListItems = useCallback(async (reordered: BuyListItem[]) => {
-    setBuyListItems(reordered)
+    const ordered = reordered.map((item, index) => ({ ...item, sort_order: index }))
+    setBuyListItems(ordered)
     try {
-      await updateBuyListSortOrder(reordered.map((n, i) => ({ id: n.id, sort_order: i })))
+      await updateBuyListSortOrder(ordered.map((item) => ({ id: item.id, sort_order: item.sort_order })))
     } catch (err) {
       console.error('[reorderBuyListItems]', err)
       setActionError('Could not save the buy-list order.')
