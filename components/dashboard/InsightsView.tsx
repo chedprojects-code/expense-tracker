@@ -81,7 +81,7 @@ export function InsightsView({ stats, transactions, accounts, month, year, budge
       <section className="transaction-history-module">
         <SectionTitle
           eyebrow="ACTIVITY"
-          title="Transaction history"
+          title=""
           action={<span className="transaction-history-count">{monthTxns.length} this month</span>}
         />
         <div className="glass-panel transaction-history-card">

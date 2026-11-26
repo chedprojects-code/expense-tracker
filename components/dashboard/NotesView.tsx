@@ -58,10 +58,11 @@ export function NotesView({
   const [tagFilter, setTagFilter] = useState('')
   const [statusFilter, setStatusFilter] = useState<'active' | 'pinned' | 'archived' | 'all'>('active')
   const [dueFilter, setDueFilter] = useState<'all' | 'overdue' | 'soon'>('all')
+  const notesInTab = tab === 'financial' ? notes : plainNotes
   const allTags = useMemo(
-    () => [...new Set([...notes.flatMap((note) => note.tags ?? []), ...plainNotes.flatMap((note) => note.tags ?? [])])]
+    () => [...new Set(notesInTab.flatMap((note) => note.tags ?? []))]
       .sort((a, b) => a.localeCompare(b)),
-    [notes, plainNotes]
+    [notesInTab]
   )
   const normalizedQuery = query.trim().toLocaleLowerCase()
   const matchesFilters = (note: Note | PlainNote) => {
@@ -93,8 +94,16 @@ export function NotesView({
       ? getNoteDueStatus(note.due_date) === 'overdue'
       : ['today', 'soon'].includes(getNoteDueStatus(note.due_date))
   ))
-  const emptyMessage = notes.length + plainNotes.length > 0 ? 'No notes match these filters.' : undefined
+  const emptyMessage = notesInTab.length > 0 ? 'No notes match these filters.' : undefined
   const showNoteFilters = tab !== 'buylist'
+  const allNotes = notesInTab
+  const statusCounts = {
+    active: allNotes.filter((note) => !note.archived).length,
+    pinned: allNotes.filter((note) => note.pinned && !note.archived).length,
+    archived: allNotes.filter((note) => note.archived).length,
+    all: allNotes.length,
+  }
+  const hasActiveFilters = Boolean(query.trim() || tagFilter || dueFilter !== 'all' || statusFilter !== 'active')
 
   return (
     <section className="notes-page">
@@ -118,35 +127,66 @@ export function NotesView({
         <button className={tab === 'financial' ? 'notes-tab active' : 'notes-tab'} onClick={() => onTabChange('financial')}>
           <WalletCards style={{ width: 15 }} /> Financial
         </button>
-        <button className={tab === 'buylist' ? 'notes-tab active' : 'notes-tab'} onClick={() => onTabChange('buylist')}>
-          <ShoppingCart style={{ width: 15 }} /> Buy List
-        </button>
-        <button className={tab === 'plain' ? 'notes-tab active' : 'notes-tab'} onClick={() => onTabChange('plain')} style={{ marginLeft: 'auto' }}>
+        <button className={tab === 'plain' ? 'notes-tab active' : 'notes-tab'} onClick={() => onTabChange('plain')} >
           <StickyNote style={{ width: 15 }} /> Plain
+        </button>
+        <button className={tab === 'buylist' ? 'notes-tab active' : 'notes-tab'} onClick={() => onTabChange('buylist')} style={{ marginLeft: 'auto' }}>
+          <ShoppingCart style={{ width: 15 }} /> Buy List
         </button>
       </div>
 
       {showNoteFilters && (
-        <div className="notes-filter-bar">
-          <label className="notes-search">
-            <Search />
-            <input aria-label="Search notes" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search title, content, or tags" />
-          </label>
-          <select aria-label="Filter notes by tag" value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}>
-            <option value="">All tags</option>
-            {allTags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}
-          </select>
-          <select aria-label="Filter notes by status" value={statusFilter} onChange={(e) => setStatusFilter(e.target.value as typeof statusFilter)}>
-            <option value="active">Active</option>
-            <option value="pinned">Pinned</option>
-            <option value="archived">Archived</option>
-            <option value="all">All notes</option>
-          </select>
-          <select aria-label="Filter notes by due date" value={dueFilter} onChange={(e) => setDueFilter(e.target.value as typeof dueFilter)}>
-            <option value="all">Any due date</option>
-            <option value="soon">Due in 7 days</option>
-            <option value="overdue">Overdue</option>
-          </select>
+        <div className="notes-filter-panel">
+          <div className="notes-filter-topline">
+            <label className="notes-search">
+              <Search />
+              <input aria-label="Search notes" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search title, content, or tags" />
+            </label>
+            {hasActiveFilters && (
+              <button type="button" className="notes-clear-filters" onClick={() => {
+                setQuery('')
+                setTagFilter('')
+                setStatusFilter('active')
+                setDueFilter('all')
+              }}>Clear filters</button>
+            )}
+          </div>
+          <div className="notes-status-filters" role="group" aria-label="Filter notes by status">
+            {([
+              ['active', 'Active'],
+              ['pinned', 'Pinned'],
+              ['archived', 'Archived'],
+              ['all', 'All notes'],
+            ] as const).map(([value, label]) => (
+              <button
+                type="button"
+                key={value}
+                className={`notes-status-filter${statusFilter === value ? ' active' : ''}`}
+                aria-pressed={statusFilter === value}
+                onClick={() => setStatusFilter(value)}
+              >
+                <span>{label}</span>
+                <small>{statusCounts[value]}</small>
+              </button>
+            ))}
+          </div>
+          <div className="notes-filter-options">
+            <label>
+              <span>Tag</span>
+              <select aria-label="Filter notes by tag" value={tagFilter} onChange={(e) => setTagFilter(e.target.value)}>
+                <option value="">All tags</option>
+                {allTags.map((tag) => <option key={tag} value={tag}>{tag}</option>)}
+              </select>
+            </label>
+            <label>
+              <span>Due date</span>
+              <select aria-label="Filter notes by due date" value={dueFilter} onChange={(e) => setDueFilter(e.target.value as typeof dueFilter)}>
+                <option value="all">Any due date</option>
+                <option value="soon">Due in 7 days</option>
+                <option value="overdue">Overdue</option>
+              </select>
+            </label>
+          </div>
         </div>
       )}
 
